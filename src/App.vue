@@ -67,7 +67,8 @@ async function getMessages() {
   const incoming = await fetch(`https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`);
   const outgoing = await fetch(`https://www.call2all.co.il/ym/api/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`);
 
-  const incomingMsgs = (await incoming.json()).rows;
+  const incomingMsgs = (await incoming.json()).rows || [];
+  const outgoingMsgs = (await outgoing.json()).rows || [];
 
   const incomingMessages = incomingMsgs.map((message) => {
     return {
@@ -76,7 +77,7 @@ async function getMessages() {
       type: 'incoming'
     };
   });
-  const outgoingMessages = (await outgoing.json()).rows.map((message) => {
+  const outgoingMessages = outgoingMsgs.map((message) => {
     return {
       dest: message.CallerId,
       phone: message.To,
