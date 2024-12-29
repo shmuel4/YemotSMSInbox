@@ -1,6 +1,7 @@
 <script setup>
 import { format, isToday, isThisYear, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { ref } from 'vue';
 
 defineProps({
   conversations: {
@@ -13,7 +14,12 @@ defineProps({
   }
 });
 
-const emit = defineEmits(['select']);
+const emit = defineEmits(['select', 'refreshMessages']);
+
+const newMessageDialogVisible = ref(false);
+const loading = ref(false);
+const phoneToSend = ref('');
+const messageToSend = ref('');
 
 const formatTime = (date) => {
   const now = new Date();
@@ -42,6 +48,25 @@ const formatTime = (date) => {
 
   return format(messageDate, 'd בMMMM yyyy', { locale: he });
 };
+
+async function sendNewMessage() {
+  loading.value = true;
+
+  const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phoneToSend.value}&message=${messageToSend.value}`);
+  const data = await response.json();
+  if (data.responseStatus === 'OK') {
+    message.value = '';
+    emit('refreshMessages');
+  } else {
+    alert('שגיאה בשליחת ההודעה!\n' + data.message);
+  }
+
+  phoneToSend.value = '';
+  messageToSend.value = '';
+
+  loading.value = false;
+  newMessageDialogVisible.value = false;
+}
 </script>
 
 <template>
@@ -50,7 +75,7 @@ const formatTime = (date) => {
       <h1 class="text-2xl font-bold text-gray-800">
         Messages
       </h1>
-      <button class="p-2 rounded-full bg-blue-500 text-white" @click="emit('refresh')">
+      <button class="p-2 rounded-full bg-blue-500 text-white" @click="newMessageDialogVisible = true">
         <svg class="w-6 h-6" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -90,6 +115,47 @@ const formatTime = (date) => {
     </div>
     <div v-else class="flex-1 flex items-center justify-center text-gray-500 h-full">
       טוען שיחות...
+    </div>
+  </div>
+
+  <div v-if="newMessageDialogVisible" @click="newMessageDialogVisible = false"
+    class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50"
+    style="backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);">
+    <div class="bg-white p-6 rounded shadow-md w-96" @click.stop="">
+      <h3 class="text-lg font-semibold mb-4">שלח הודעה חדשה</h3>
+      <label for="phone"
+        class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
+        <input v-model="phoneToSend" type="text" id="phone" placeholder="מספר הטלפון של הנמען"
+          class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
+        <span
+          class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs">
+          מספר טלפון
+        </span>
+      </label>
+      <label for="message"
+        class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
+        <textarea v-model="messageToSend" id="message" placeholder="הודעה"
+          class="peer h-24 w-full border-none bg-transparent p-0 pt-2 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900"></textarea>
+        <span
+          class="absolute start-3 top-1 text-xs text-gray-500 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs">
+          הודעה
+        </span>
+      </label>
+      <button :disabled="loading" @click="sendNewMessage()"
+        :class="[loading ? 'bg-opacity-80' : 'hover:bg-blue-500', 'mt-4 transition-all w-full px-4 py-2 tracking-wide text-white duration-200 transform bg-blue-600 rounded-md focus:outline-none focus:bg-blue-500 focus:ring-blue-400 focus:ring-offset-2 focus:ring-2']">
+        <span v-if="!loading">שלח הודעה</span>
+        <span v-if="loading" class="flex justify-center items-center">
+          <svg class="animate-spin -mr-1 ml-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+            </circle>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+          </svg>
+          רק דקה, אנחנו בודקים את זה..
+        </span>
+      </button>
     </div>
   </div>
 </template>

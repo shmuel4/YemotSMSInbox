@@ -8,7 +8,7 @@ const conversations = ref([]);
 const selectedConversationId = ref(null);
 const selectedConversation = ref(null);
 
-const dialogVisible = ref(false);
+const loginDialogVisible = ref(false);
 const username = ref('');
 const password = ref('');
 const usernameFocus = ref(false);
@@ -28,7 +28,7 @@ const handleConversationSelect = (id) => {
 
 async function init() {
   if (!localStorage.getItem('username') || !localStorage.getItem('password')) {
-    dialogVisible.value = true;
+    loginDialogVisible.value = true;
     usernameFocus.value = true;
   } else {
     await getMessages();
@@ -153,7 +153,7 @@ async function login() {
     localStorage.setItem('username', username.value);
     localStorage.setItem('password', password.value);
 
-    dialogVisible.value = false;
+    loginDialogVisible.value = false;
     init();
   } else {
     alert('שגיאה בהתחברות!\n' + data.message);
@@ -185,19 +185,19 @@ Notification.requestPermission().then((permission) => {
 <template>
   <div class="flex h-full bg-white">
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
-      @select="handleConversationSelect" />
+      @select="handleConversationSelect" @refresh-messages="refreshMessages" />
     <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" />
   </div>
 
   <!-- דיאלוג להזנת שם משתמש וסיסמה -->
-  <div v-if="dialogVisible" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50"
+  <div v-if="loginDialogVisible" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50"
     style="backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);">
     <div class="bg-white p-6 rounded shadow-md w-96">
       <h3 class="text-lg font-semibold mb-4">התחברות למערכת</h3>
       <label for="username"
         class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
-        <input @keydown.enter="login()" v-model="username" type="text" id="username"
-          placeholder="מה מספר המערכת שלך?" :autofocus="usernameFocus"
+        <input @keydown.enter="login()" v-model="username" type="text" id="username" placeholder="מה מספר המערכת שלך?"
+          :autofocus="usernameFocus"
           class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
         <span
           class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs">
@@ -206,16 +206,15 @@ Notification.requestPermission().then((permission) => {
       </label>
       <label for="password"
         class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
-        <input @keydown.enter="login()" v-model="password" type="password" id="password"
-          placeholder="מה הסיסמא שלך?"
+        <input @keydown.enter="login()" v-model="password" type="password" id="password" placeholder="מה הסיסמא שלך?"
           class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
         <span
           class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs">
           סיסמא
         </span>
       </label>
-      <button :disabled="disabled" @click="login()"
-        :class="[disabled ? 'bg-opacity-80' : 'hover:bg-blue-500', 'mt-4 transition-all w-full px-4 py-2 tracking-wide text-white duration-200 transform bg-blue-600 rounded-md focus:outline-none focus:bg-blue-500 focus:ring-blue-400 focus:ring-offset-2 focus:ring-2']">
+      <button :disabled="loading" @click="login()"
+        :class="[loading ? 'bg-opacity-80' : 'hover:bg-blue-500', 'mt-4 transition-all w-full px-4 py-2 tracking-wide text-white duration-200 transform bg-blue-600 rounded-md focus:outline-none focus:bg-blue-500 focus:ring-blue-400 focus:ring-offset-2 focus:ring-2']">
         <span v-if="!loading">כניסה למערכת</span>
         <span v-if="loading" class="flex justify-center items-center">
           <svg class="animate-spin -mr-1 ml-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
