@@ -7,6 +7,10 @@ defineProps({
   conversation: {
     type: Object,
     default: null
+  },
+  username: {
+    type: String,
+    default: ''
   }
 });
 
@@ -67,6 +71,11 @@ async function addToContacts(phone, oldName) {
   await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini&contents=${JSON.stringify(contacts)}`);
   emit('refreshMessages');
 }
+
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
 </script>
 
 <template>
@@ -103,14 +112,22 @@ async function addToContacts(phone, oldName) {
           </div>
         </div>
 
-        <span class="h-6 w-6 text-gray-800 cursor-pointer" title="רענן הודעות" @click="emit('refreshMessages')">
-          <svg data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99">
-            </path>
-          </svg>
-        </span>
+        <div class="flex items-center gap-4">
+          <span class="h-6 w-6 text-gray-800 cursor-pointer" title="רענן הודעות" @click="emit('refreshMessages')">
+            <svg data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99">
+              </path>
+            </svg>
+          </span>
+          <span class="h-6 w-6 text-gray-800 cursor-pointer" title="התנתק" @click="logout()">
+            <svg data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9"></path>
+            </svg>
+          </span>
+        </div>
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -158,8 +175,15 @@ async function addToContacts(phone, oldName) {
         </button>
       </div>
     </div>
-    <div v-else class="flex-1 flex items-center justify-center text-gray-500">
+    <div v-else class="flex-1 flex flex-col items-center justify-between text-gray-500 py-4">
+      <div></div>
+
       בחר שיחה בכדי להתחיל לשוחח
+
+      <div class="text-sm text-gray-600">
+        מחובר כ{{ username }} |
+        <button @click="logout()" class="text-blue-500 underline">התנתק</button>
+      </div>
     </div>
   </div>
 </template>

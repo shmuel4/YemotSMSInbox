@@ -9,7 +9,7 @@ const selectedConversationId = ref(null);
 const selectedConversation = ref(null);
 
 const loginDialogVisible = ref(false);
-const username = ref('');
+const username = ref(localStorage.getItem('username') || '');
 const password = ref('');
 const usernameFocus = ref(false);
 const loading = ref(false);
@@ -208,7 +208,7 @@ if ('Notification' in window && Notification.requestPermission) {
   <div class="flex h-full bg-white">
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
       @select="handleConversationSelect" @refresh-messages="refreshMessages" />
-    <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" />
+    <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" :username="username" />
   </div>
 
   <!-- דיאלוג להזנת שם משתמש וסיסמה -->
