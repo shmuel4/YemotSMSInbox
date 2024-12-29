@@ -30,7 +30,7 @@ const formatMessageTime = (timestamp) => {
 
   if (daysDifference <= 7) {
     const daysInHebrew = ['ימים', 'יום', 'יומיים', 'שלושה ימים', 'ארבעה ימים', 'חמישה ימים', 'שישה ימים', 'שבעה ימים'];
-    return `לפני ${daysInHebrew[daysDifference]}, ${time}`;
+    return `לפני ${daysInHebrew[daysDifference + 1]}, ${time}`;
   }
 
   return format(date, "d בMMMM yyyy', 'HH:mm", { locale: he });

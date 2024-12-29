@@ -33,12 +33,12 @@ const formatTime = (date) => {
 
   if (daysDifference <= 7) {
     switch (daysDifference) {
-      case 1:
+      case 0:
         return 'אתמול';
-      case 2:
+      case 1:
         return 'לפני יומיים';
       default:
-        return `לפני ${daysDifference} ימים`;
+        return `לפני ${daysDifference + 1} ימים`;
     }
   }
 
@@ -96,7 +96,7 @@ async function sendNewMessage() {
               <p class="text-sm font-medium text-gray-900 truncate">
                 {{ conversation.name }}
               </p>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-gray-500 flex-shrink-0">
                 {{ formatTime(conversation.lastMessage.timestamp) }}
               </p>
             </div>
