@@ -45,7 +45,7 @@ const formatMessageContent = (content: string): string => {
 };
 
 async function sendMessage(phone) {
-  const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${import.meta.env.VITE_YEMOT_API_USERNAME}:${import.meta.env.VITE_YEMOT_API_PASSWORD}&phones=${phone}&message=${message.value}`);
+  const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`);
   const data = await response.json();
   if (data.responseStatus === 'OK') {
     message.value = '';

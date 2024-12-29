@@ -9,6 +9,12 @@ const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
 const selectedConversation = ref<Conversation | null>(null);
 
+const dialogVisible = ref(false);
+const username = ref('');
+const password = ref('');
+const usernameFocus = ref(false);
+const loading = ref(false);
+
 const handleConversationSelect = (id: string) => {
   selectedConversationId.value = id;
   selectedConversation.value = conversations.value.find(c => c.id === id) || null;
@@ -21,16 +27,54 @@ const handleConversationSelect = (id: string) => {
   });
 };
 
-async function getMessages() {
-  const incoming = await fetch(`https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${import.meta.env.VITE_YEMOT_API_USERNAME}:${import.meta.env.VITE_YEMOT_API_PASSWORD}&limit=999999`);
-  const outgoing = await fetch(`https://www.call2all.co.il/ym/api/GetSmsOutLog?token=${import.meta.env.VITE_YEMOT_API_USERNAME}:${import.meta.env.VITE_YEMOT_API_PASSWORD}&limit=999999`);
+async function init() {
+  if (!localStorage.getItem('username') || !localStorage.getItem('password')) {
+    dialogVisible.value = true;
+    usernameFocus.value = true;
+  } else {
+    await getMessages();
+    setInterval(checkNewMessages, 5000);
+  }
+}
 
-  const incomingMessages = (await incoming.json()).rows.map(message => {
+async function checkNewMessages() {
+  try {
+    const username = localStorage.getItem('username');
+    const password = localStorage.getItem('password');
+
+    const response = await fetch(`https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${username}:${password}&limit=1`);
+    const data = await response.json();
+    const message = data.rows[0];
+
+    const lastMessage = localStorage.getItem('lastMessage');
+    if (lastMessage === JSON.stringify(message)) {
+      return;
+    }
+
+    new Notification(message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone, {
+      body: message.message,
+    });
+
+    localStorage.setItem('lastMessage', JSON.stringify(message));
+
+    await refreshMessages();
+  } catch (error) {
+    console.error('Error in performTask:', error);
+  }
+}
+
+async function getMessages() {
+  const incoming = await fetch(`https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`);
+  const outgoing = await fetch(`https://www.call2all.co.il/ym/api/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`);
+
+  const incomingMsgs = (await incoming.json()).rows;
+
+  const incomingMessages = incomingMsgs.map(message => {
     return {
       ...message,
       phone: message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone,
       type: 'incoming'
-    }
+    };
   });
   const outgoingMessages = (await outgoing.json()).rows.map(message => {
     return {
@@ -39,8 +83,10 @@ async function getMessages() {
       message: message.Message,
       server_date: message.Time,
       type: 'outgoing'
-    }
+    };
   });
+
+  localStorage.setItem('lastMessage', JSON.stringify(incomingMsgs[0]));
 
   conversations.value = [];
 
@@ -87,20 +133,55 @@ async function getMessages() {
           read: true,
           avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + message.phone,
           type: message.type
-        }
+        };
       })
-    })
+    });
   }
 }
 
-getMessages();
+async function login() {
+  loading.value = true;
+
+  if (!username.value || !password.value) {
+    alert('כל השדות הינם שדות חובה!');
+    return;
+  }
+
+  const response = await fetch(`https://www.call2all.co.il/ym/api/GetSession?token=${username.value}:${password.value}`);
+  const data = await response.json();
+
+  if (data.responseStatus === 'OK') {
+    localStorage.setItem('username', username.value);
+    localStorage.setItem('password', password.value);
+
+    dialogVisible.value = false;
+    init();
+  } else {
+    alert('שגיאה בהתחברות!\n' + data.message);
+  }
+
+  loading.value = false;
+}
+
+init();
 
 async function refreshMessages() {
-  const phone = selectedConversation.value.contact;
+  const phone = selectedConversation.value?.contact;
 
   await getMessages();
-  handleConversationSelect(conversations.value.find(c => c.contact === phone).id);
+  if (phone) {
+    handleConversationSelect(conversations.value.find(c => c.contact === phone)?.id || '');
+  }
 }
+
+Notification.requestPermission().then((permission) => {
+  if (permission === 'granted') {
+    console.log('Notification permission granted.');
+  } else {
+    console.error('Notification permission denied.');
+  }
+});
+
 </script>
 
 <template>
@@ -108,5 +189,48 @@ async function refreshMessages() {
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
       @select="handleConversationSelect" />
     <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" />
+  </div>
+
+  <!-- דיאלוג להזנת שם משתמש וסיסמה -->
+  <div v-if="dialogVisible" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50"
+    style="backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);">
+    <div class="bg-white p-6 rounded shadow-md w-96">
+      <h3 class="text-lg font-semibold mb-4">התחברות למערכת</h3>
+      <label for="username"
+        class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
+        <input @keydown.enter="login()" v-model="username" type="text" id="username" :disabled="usernameDisabled"
+          placeholder="מה מספר המערכת שלך?" :autofocus="usernameFocus"
+          class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
+        <span
+          class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs">
+          מספר מערכת
+        </span>
+      </label>
+      <label for="password"
+        class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
+        <input @keydown.enter="login()" v-model="password" type="password" id="password" :autofocus="passwordFocus"
+          placeholder="מה הסיסמא שלך?"
+          class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
+        <span
+          class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs">
+          סיסמא
+        </span>
+      </label>
+      <button :disabled="disabled" @click="login()"
+        :class="[disabled ? 'bg-opacity-80' : 'hover:bg-blue-500', 'mt-4 transition-all w-full px-4 py-2 tracking-wide text-white duration-200 transform bg-blue-600 rounded-md focus:outline-none focus:bg-blue-500 focus:ring-blue-400 focus:ring-offset-2 focus:ring-2']">
+        <span v-if="!loading">כניסה למערכת</span>
+        <span v-if="loading" class="flex justify-center items-center">
+          <svg class="animate-spin -mr-1 ml-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+            </circle>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+          </svg>
+          רק דקה, אנחנו בודקים את זה..
+        </span>
+      </button>
+    </div>
   </div>
 </template>
