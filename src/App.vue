@@ -67,13 +67,28 @@ async function getMessages() {
   const incoming = await fetch(`https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`);
   const outgoing = await fetch(`https://www.call2all.co.il/ym/api/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`);
 
+  const contactsFetch = await fetch(`https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini`);
+  const contactsRes = await contactsFetch.json();
+
+  let contacts = [];
+
+  if (contactsRes.message === "file does not exist") {
+    await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini&contents=${JSON.stringify({})}`);
+  } else {
+    const contactsData = contactsRes.contents;
+    const contactsObj = JSON.parse(contactsData);
+
+    contacts = contactsObj;
+  }
+
   const incomingMsgs = (await incoming.json()).rows || [];
   const outgoingMsgs = (await outgoing.json()).rows || [];
 
   const incomingMessages = incomingMsgs.map((message) => {
+    const phone = message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone;
     return {
       ...message,
-      phone: message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone,
+      phone: phone,
       type: 'incoming'
     };
   });
@@ -114,6 +129,7 @@ async function getMessages() {
     conversations.value.push({
       id: crypto.randomUUID(),
       contact: conversation.phone,
+      name: contacts[conversation.phone] || conversation.phone,
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + conversation.phone,
       unreadCount: 0,
       lastMessage: {

@@ -94,7 +94,7 @@ async function sendNewMessage() {
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
               <p class="text-sm font-medium text-gray-900 truncate">
-                {{ conversation.contact }}
+                {{ conversation.name }}
               </p>
               <p class="text-xs text-gray-500">
                 {{ formatTime(conversation.lastMessage.timestamp) }}

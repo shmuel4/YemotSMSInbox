@@ -54,6 +54,19 @@ async function sendMessage(phone) {
     alert('שגיאה בשליחת ההודעה!\n' + data.message);
   }
 }
+
+async function addToContacts(phone) {
+  const name = prompt('הכנס את שם איש הקשר:');
+
+  const contactsFetch = await fetch(`https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini`);
+  const contactsRes = await contactsFetch.json();
+
+  const contacts = JSON.parse(contactsRes.contents);
+  contacts[phone] = name;
+
+  await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini&contents=${JSON.stringify(contacts)}`);
+  emit('refreshMessages');
+}
 </script>
 
 <template>
@@ -62,10 +75,22 @@ async function sendMessage(phone) {
       <div class="border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 bg-white z-10">
         <div class="space-x-3 space-x-reverse flex items-center">
           <img :src="conversation.avatar" alt="" class="h-10 w-10 rounded-full" />
-          <div>
+          <div class="-my-1">
             <h2 class="text-lg font-medium text-gray-900">
-              {{ conversation.contact }}
+              {{ conversation.name }}
             </h2>
+            <h3 v-if="conversation.name !== conversation.contact" class="text-xs text-gray-500">
+              {{ conversation.contact }}
+            </h3>
+          </div>
+          <div v-if="conversation.name == conversation.contact" @click="addToContacts(conversation.contact)"
+            class="w-[22px] text-gray-800 cursor-pointer" title="הוסף לאנשי הקשר">
+            <svg data-slot="icon" fill="none" stroke-width="1.8" stroke="currentColor" viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z">
+              </path>
+            </svg>
           </div>
         </div>
 
@@ -106,7 +131,8 @@ async function sendMessage(phone) {
         <div class="flex items-center space-x-2 space-x-reverse">
           <textarea v-model="message" type="text" placeholder="הקלד הודעה..." rows="1"
             class="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-blue-500" />
-          <button @click="sendMessage(conversation.contact)" class="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600">
+          <button @click="sendMessage(conversation.contact)"
+            class="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
