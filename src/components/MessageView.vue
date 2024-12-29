@@ -1,20 +1,20 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue';
-import type { Conversation } from '../types/message';
 import { format, isToday, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-defineProps<{
-  conversation: Conversation | null;
-}>();
+defineProps({
+  conversation: {
+    type: Object,
+    default: null
+  }
+});
 
-const emit = defineEmits<{
-  (e: 'refreshMessages'): void;
-}>();
+const emit = defineEmits(['refreshMessages']);
 
-const message = ref<string | null>(null);
+const message = ref(null);
 
-const formatMessageTime = (timestamp: Date) => {
+const formatMessageTime = (timestamp) => {
   const date = new Date(timestamp);
   const time = format(date, 'HH:mm');
 
@@ -36,7 +36,7 @@ function scrollToBottom() {
   window.scrollTo(0, document.body.scrollHeight);
 }
 
-const formatMessageContent = (content: string): string => {
+const formatMessageContent = (content) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return content.replace(
     urlRegex,
@@ -44,7 +44,7 @@ const formatMessageContent = (content: string): string => {
   );
 };
 
-async function sendMessage(phone: string) {
+async function sendMessage(phone) {
   const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`);
   const data = await response.json();
   if (data.responseStatus === 'OK') {

@@ -1,21 +1,20 @@
-<script setup lang="ts">
+<script setup>
 import { ref, watchEffect, nextTick } from 'vue';
-import type { Conversation } from './types/message';
 import ConversationList from './components/ConversationList.vue';
 import MessageView from './components/MessageView.vue';
 
-const conversations = ref<Conversation[]>([]);
+const conversations = ref([]);
 
-const selectedConversationId = ref<string | null>(null);
-const selectedConversation = ref<Conversation | null>(null);
+const selectedConversationId = ref(null);
+const selectedConversation = ref(null);
 
-const dialogVisible = <boolean>ref(false);
-const username = <string>ref('');
-const password = <string>ref('');
-const usernameFocus = <boolean>ref(false);
-const loading = <boolean>ref(false);
+const dialogVisible = ref(false);
+const username = ref('');
+const password = ref('');
+const usernameFocus = ref(false);
+const loading = ref(false);
 
-const handleConversationSelect = (id: string) => {
+const handleConversationSelect = (id) => {
   selectedConversationId.value = id;
   selectedConversation.value = conversations.value.find(c => c.id === id) || null;
   watchEffect(() => {
@@ -69,14 +68,14 @@ async function getMessages() {
 
   const incomingMsgs = (await incoming.json()).rows;
 
-  const incomingMessages = incomingMsgs.map((message: object) => {
+  const incomingMessages = incomingMsgs.map((message) => {
     return {
       ...message,
       phone: message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone,
       type: 'incoming'
     };
   });
-  const outgoingMessages = (await outgoing.json()).rows.map((message: object) => {
+  const outgoingMessages = (await outgoing.json()).rows.map((message) => {
     return {
       dest: message.CallerId,
       phone: message.To,
@@ -92,9 +91,9 @@ async function getMessages() {
 
   let messages = incomingMessages.concat(outgoingMessages);
 
-  messages.sort((a: object, b: object) => new Date(b.server_date) - new Date(a.server_date));
+  messages.sort((a, b) => new Date(b.server_date) - new Date(a.server_date));
 
-  const messagesBySender = messages.reduce((acc: any, message: object) => {
+  const messagesBySender = messages.reduce((acc, message) => {
     const sender = message.phone;
     if (!acc[sender]) {
       acc[sender] = [];
@@ -103,9 +102,9 @@ async function getMessages() {
     return acc;
   }, {});
 
-  function removeDuplicates(array: any, key: any) {
+  function removeDuplicates(array, key) {
     return Array.from(
-      new Map(array.map((item: any) => [item[key], item])).values()
+      new Map(array.map((item) => [item[key], item])).values()
     );
   }
 
@@ -124,7 +123,7 @@ async function getMessages() {
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + messagesBySender[conversation.phone][0].phone,
         type: messagesBySender[conversation.phone][0].type
       },
-      messages: messagesBySender[conversation.phone].reverse().map((message: object) => {
+      messages: messagesBySender[conversation.phone].reverse().map((message) => {
         return {
           id: crypto.randomUUID(),
           sender: message.phone,
@@ -181,7 +180,6 @@ Notification.requestPermission().then((permission) => {
     console.error('Notification permission denied.');
   }
 });
-
 </script>
 
 <template>

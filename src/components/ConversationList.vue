@@ -1,18 +1,21 @@
-<script setup lang="ts">
-import type { Conversation } from '../types/message';
+<script setup>
 import { format, isToday, isThisYear, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-defineProps<{
-  conversations: Conversation[];
-  selectedId: string | null;
-}>();
+defineProps({
+  conversations: {
+    type: Array,
+    default: () => []
+  },
+  selectedId: {
+    type: String,
+    default: null
+  }
+});
 
-const emit = defineEmits<{
-  (e: 'select', id: string): void;
-}>();
+const emit = defineEmits(['select']);
 
-const formatTime = (date: Date) => {
+const formatTime = (date) => {
   const now = new Date();
   const messageDate = new Date(date);
 
