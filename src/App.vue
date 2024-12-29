@@ -173,13 +173,17 @@ async function refreshMessages() {
   }
 }
 
-Notification.requestPermission().then((permission) => {
-  if (permission === 'granted') {
-    console.log('Notification permission granted.');
-  } else {
-    console.error('Notification permission denied.');
-  }
-});
+if ('Notification' in window && Notification.requestPermission) {
+  Notification.requestPermission().then((permission) => {
+    if (permission === 'granted') {
+      console.log('Notification permission granted.');
+    } else {
+      console.error('Notification permission denied.');
+    }
+  });
+} else {
+  console.error('Notifications are not supported by this browser.');
+}
 </script>
 
 <template>
