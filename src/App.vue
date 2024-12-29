@@ -31,6 +31,7 @@ async function init() {
     loginDialogVisible.value = true;
     usernameFocus.value = true;
   } else {
+    document.title = 'מערכת סמסים - ' + localStorage.getItem('username');
     await getMessages();
     setInterval(checkNewMessages, 5000);
   }
