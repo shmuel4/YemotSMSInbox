@@ -78,7 +78,9 @@ const formatTime = (date: Date) => {
           </div>
           <div v-if="conversation.unreadCount > 0"
             class="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-            <span class="text-xs text-white">{{ conversation.unreadCount }}</span>
+            <span class="text-xs text-white">
+              {{ conversation.unreadCount }}
+            </span>
           </div>
         </div>
       </div>
