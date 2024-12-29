@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import type { Conversation } from '../types/message';
-import { format, isToday, isWithinLastWeek, differenceInDays } from 'date-fns';
+import { format, isToday, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-const props = defineProps<{
+defineProps<{
   conversation: Conversation | null;
 }>();
 
 const emit = defineEmits<{
-  (e: 'refreshMessages', id: string): void;
+  (e: 'refreshMessages'): void;
 }>();
 
 const message = ref<string | null>(null);
@@ -44,7 +44,7 @@ const formatMessageContent = (content: string): string => {
   );
 };
 
-async function sendMessage(phone) {
+async function sendMessage(phone: string) {
   const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`);
   const data = await response.json();
   if (data.responseStatus === 'OK') {

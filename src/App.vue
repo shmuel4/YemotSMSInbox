@@ -9,11 +9,11 @@ const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
 const selectedConversation = ref<Conversation | null>(null);
 
-const dialogVisible = ref(false);
-const username = ref('');
-const password = ref('');
-const usernameFocus = ref(false);
-const loading = ref(false);
+const dialogVisible = <boolean>ref(false);
+const username = <string>ref('');
+const password = <string>ref('');
+const usernameFocus = <boolean>ref(false);
+const loading = <boolean>ref(false);
 
 const handleConversationSelect = (id: string) => {
   selectedConversationId.value = id;
@@ -69,14 +69,14 @@ async function getMessages() {
 
   const incomingMsgs = (await incoming.json()).rows;
 
-  const incomingMessages = incomingMsgs.map(message => {
+  const incomingMessages = incomingMsgs.map((message: object) => {
     return {
       ...message,
       phone: message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone,
       type: 'incoming'
     };
   });
-  const outgoingMessages = (await outgoing.json()).rows.map(message => {
+  const outgoingMessages = (await outgoing.json()).rows.map((message: object) => {
     return {
       dest: message.CallerId,
       phone: message.To,
@@ -92,9 +92,9 @@ async function getMessages() {
 
   let messages = incomingMessages.concat(outgoingMessages);
 
-  messages.sort((a, b) => new Date(b.server_date) - new Date(a.server_date));
+  messages.sort((a: object, b: object) => new Date(b.server_date) - new Date(a.server_date));
 
-  const messagesBySender = messages.reduce((acc, message) => {
+  const messagesBySender = messages.reduce((acc: any, message: object) => {
     const sender = message.phone;
     if (!acc[sender]) {
       acc[sender] = [];
@@ -103,9 +103,9 @@ async function getMessages() {
     return acc;
   }, {});
 
-  function removeDuplicates(array, key) {
+  function removeDuplicates(array: any, key: any) {
     return Array.from(
-      new Map(array.map(item => [item[key], item])).values()
+      new Map(array.map((item: any) => [item[key], item])).values()
     );
   }
 
@@ -124,7 +124,7 @@ async function getMessages() {
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + messagesBySender[conversation.phone][0].phone,
         type: messagesBySender[conversation.phone][0].type
       },
-      messages: messagesBySender[conversation.phone].reverse().map(message => {
+      messages: messagesBySender[conversation.phone].reverse().map((message: object) => {
         return {
           id: crypto.randomUUID(),
           sender: message.phone,
@@ -198,7 +198,7 @@ Notification.requestPermission().then((permission) => {
       <h3 class="text-lg font-semibold mb-4">התחברות למערכת</h3>
       <label for="username"
         class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
-        <input @keydown.enter="login()" v-model="username" type="text" id="username" :disabled="usernameDisabled"
+        <input @keydown.enter="login()" v-model="username" type="text" id="username"
           placeholder="מה מספר המערכת שלך?" :autofocus="usernameFocus"
           class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
         <span
@@ -208,7 +208,7 @@ Notification.requestPermission().then((permission) => {
       </label>
       <label for="password"
         class="relative block overflow-hidden rounded-md border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-colors cursor-text mt-3">
-        <input @keydown.enter="login()" v-model="password" type="password" id="password" :autofocus="passwordFocus"
+        <input @keydown.enter="login()" v-model="password" type="password" id="password"
           placeholder="מה הסיסמא שלך?"
           class="peer h-9 w-full border-none bg-transparent p-0 placeholder-transparent focus:placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900" />
         <span

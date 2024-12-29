@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { Conversation } from '../types/message';
 import { format, isToday, isThisYear, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-const props = defineProps<{
+defineProps<{
   conversations: Conversation[];
   selectedId: string | null;
 }>();
