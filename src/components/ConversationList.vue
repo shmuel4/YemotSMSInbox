@@ -70,7 +70,7 @@ async function sendNewMessage() {
 </script>
 
 <template>
-  <div class="w-80 border-l border-gray-200 h-full overflow-y-auto fixed top-0 right-0 bg-white z-10">
+  <div :class="[selectedId ? 'hidden w-80 md:block' : 'block w-full md:w-80', 'border-l border-gray-200 h-full overflow-y-auto fixed top-0 right-0 bg-white z-10']">
     <div class="px-4 py-4 sticky top-0 z-10 bg-white flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-800">
         Messages

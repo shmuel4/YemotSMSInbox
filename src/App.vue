@@ -208,7 +208,8 @@ if ('Notification' in window && Notification.requestPermission) {
   <div class="flex h-full bg-white">
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
       @select="handleConversationSelect" @refresh-messages="refreshMessages" />
-    <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" :username="username" />
+    <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" :username="username"
+      :selected-id="selectedConversationId" @back="selectedConversation = null, selectedConversationId = null" />
   </div>
 
   <!-- דיאלוג להזנת שם משתמש וסיסמה -->
