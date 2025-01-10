@@ -14,7 +14,11 @@ const password = ref('');
 const usernameFocus = ref(false);
 const loading = ref(false);
 
+const setRead = ref(null);
+
 const handleConversationSelect = (id) => {
+  setRead.value = null;
+
   selectedConversationId.value = id;
   selectedConversation.value = conversations.value.find(c => c.id === id) || null;
   watchEffect(() => {
@@ -24,6 +28,53 @@ const handleConversationSelect = (id) => {
   }, {
     flush: 'post'
   });
+
+  setRead.value = setTimeout(async () => {
+    const readedArray = [];
+    const incomingMessages = selectedConversation.value.messages.filter(message => message.type === 'incoming');
+    incomingMessages.forEach((message) => {
+      if (!message.read) {
+        readedArray.push({ phone: message.sender, message: message.content, server_date: new Date(message.timestamp).getTime() })
+      }
+    });
+
+    if (readedArray.length > 0) {
+      const readedMessagesFetch = await fetch(`https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`);
+      const readedMessagesRes = await readedMessagesFetch.json();
+
+      let readedMessages = [];
+
+      if (readedMessagesRes.message === "file does not exist") {
+        await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(readedArray)}`);
+      } else {
+        const readedMessagesData = readedMessagesRes.contents;
+        const readedMessagesObj = JSON.parse(readedMessagesData);
+
+        readedMessages = readedMessagesObj;
+
+        readedMessages = readedMessages.concat(readedArray);
+
+        await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
+            what: 'ivr2:YemotSMSInboxReadedMessages.ini',
+            contents: JSON.stringify(readedMessages)
+          })
+        });
+
+        conversations.value = conversations.value.map(conversation => {
+          if (conversation.id === id) {
+            conversation.unreadCount = 0;
+          }
+          return conversation;
+        });
+      }
+    }
+  }, 1000);
 };
 
 async function init() {
@@ -81,11 +132,26 @@ async function getMessages() {
     contacts = contactsObj;
   }
 
+  const readedMessagesFetch = await fetch(`https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`);
+  const readedMessagesRes = await readedMessagesFetch.json();
+
+  let readedMessages = [];
+
+  if (readedMessagesRes.message === "file does not exist") {
+    await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify([])}`);
+  } else {
+    const readedMessagesData = readedMessagesRes.contents;
+    const readedMessagesObj = JSON.parse(readedMessagesData);
+
+    readedMessages = readedMessagesObj;
+  }
+
   const incomingMsgs = (await incoming.json()).rows || [];
   const outgoingMsgs = (await outgoing.json()).rows || [];
 
   const incomingMessages = incomingMsgs.map((message) => {
     const phone = message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone;
+
     return {
       ...message,
       phone: phone,
@@ -126,32 +192,44 @@ async function getMessages() {
   }
 
   for (let conversation of removeDuplicates(messages, 'phone')) {
+    const lastMessageData = messagesBySender[conversation.phone][0];
+
+    const messages = messagesBySender[conversation.phone].reverse().map((message) => {
+      return {
+        id: crypto.randomUUID(),
+        sender: message.phone,
+        content: message.message,
+        timestamp: new Date(message.server_date),
+        read: readedMessages.some(readedMessage =>
+          readedMessage.phone === message.phone &&
+          readedMessage.message === message.message &&
+          readedMessage.server_date === new Date(message.server_date).getTime()
+        ),
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + message.phone,
+        type: message.type
+      };
+    });
+
     conversations.value.push({
       id: crypto.randomUUID(),
       contact: conversation.phone,
       name: contacts[conversation.phone] || conversation.phone,
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + conversation.phone,
-      unreadCount: 0,
       lastMessage: {
         id: crypto.randomUUID(),
-        sender: messagesBySender[conversation.phone][0].phone,
-        content: messagesBySender[conversation.phone][0].message,
-        timestamp: new Date(messagesBySender[conversation.phone][0].server_date),
-        read: true,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + messagesBySender[conversation.phone][0].phone,
-        type: messagesBySender[conversation.phone][0].type
+        sender: lastMessageData.phone,
+        content: lastMessageData.message,
+        timestamp: new Date(lastMessageData.server_date),
+        read: readedMessages.some(readedMessage =>
+          readedMessage.phone === lastMessageData.phone &&
+          readedMessage.message === lastMessageData.message &&
+          readedMessage.server_date === new Date(lastMessageData.server_date).getTime()
+        ),
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + lastMessageData.phone,
+        type: lastMessageData.type
       },
-      messages: messagesBySender[conversation.phone].reverse().map((message) => {
-        return {
-          id: crypto.randomUUID(),
-          sender: message.phone,
-          content: message.message,
-          timestamp: new Date(message.server_date),
-          read: true,
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + message.phone,
-          type: message.type
-        };
-      })
+      messages,
+      unreadCount: messages.filter((message) => message.type == 'incoming' && message.read == false).length,
     });
   }
 }

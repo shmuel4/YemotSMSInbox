@@ -72,7 +72,17 @@ async function addToContacts(phone, oldName) {
   const contacts = JSON.parse(contactsRes.contents);
   contacts[phone] = name;
 
-  await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini&contents=${JSON.stringify(contacts)}`);
+  await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
+      what: 'ivr2:YemotSMSInboxContacts.ini',
+      contents: JSON.stringify(contacts)
+    })
+  });
   emit('refreshMessages');
 }
 
