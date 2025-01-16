@@ -1,7 +1,7 @@
 <script setup>
 import { format, isToday, isThisYear, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 defineProps({
   conversations: {
@@ -14,9 +14,10 @@ defineProps({
   }
 });
 
-const emit = defineEmits(['select', 'refreshMessages']);
+const emit = defineEmits(['select', 'refreshMessages', 'filter']);
 
 const newMessageDialogVisible = ref(false);
+const filter = ref(false);
 const loading = ref(false);
 const phoneToSend = ref('');
 const messageToSend = ref('');
@@ -70,19 +71,30 @@ async function sendNewMessage() {
 </script>
 
 <template>
-  <div :class="[selectedId ? 'hidden w-80 md:block' : 'block w-full md:w-80', 'border-l border-gray-200 h-full overflow-y-auto fixed top-0 right-0 bg-white z-10']">
+  <div
+    :class="[selectedId ? 'hidden w-80 md:block' : 'block w-full md:w-80', 'border-l border-gray-200 h-full overflow-y-auto fixed top-0 right-0 bg-white z-10']">
     <div class="px-4 py-4 sticky top-0 z-10 bg-white flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-800">
         Messages
       </h1>
-      <button class="p-2 rounded-full bg-blue-500 text-white" @click="newMessageDialogVisible = true">
-        <svg class="w-6 h-6" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10">
-          </path>
-        </svg>
-      </button>
+      <div class="flex items-center gap-2">
+        <button v-if="conversations.some(conversation => conversation.unreadCount > 0)" class="p-2 rounded-full hover:bg-gray-200 text-blue-600 transition" @click="filter = !filter, emit('filter', filter)">
+          <svg class="w-5 h-5" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z">
+            </path>
+          </svg>
+        </button>
+        <button class="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-500 transition" @click="newMessageDialogVisible = true">
+          <svg class="w-6 h-6" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10">
+            </path>
+          </svg>
+        </button>
+      </div>
     </div>
     <div v-if="conversations.length" class="divide-y divide-gray-200">
       <div v-for="conversation in conversations" :key="conversation.id" :class="[

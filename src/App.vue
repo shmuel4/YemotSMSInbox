@@ -155,7 +155,8 @@ async function getMessages() {
     return {
       ...message,
       phone: phone,
-      type: 'incoming'
+      type: 'incoming',
+      status: 'DELIVRD'
     };
   });
   const outgoingMessages = outgoingMsgs.map((message) => {
@@ -164,6 +165,7 @@ async function getMessages() {
       phone: message.To,
       message: message.Message,
       server_date: message.Time,
+      status: message.DeliveryReport,
       type: 'outgoing'
     };
   });
@@ -206,7 +208,8 @@ async function getMessages() {
           readedMessage.server_date === new Date(message.server_date).getTime()
         ),
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + message.phone,
-        type: message.type
+        type: message.type,
+        status: message.status,
       };
     });
 
@@ -226,7 +229,8 @@ async function getMessages() {
           readedMessage.server_date === new Date(lastMessageData.server_date).getTime()
         ),
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + lastMessageData.phone,
-        type: lastMessageData.type
+        type: lastMessageData.type,
+        status: lastMessageData.status,
       },
       messages,
       unreadCount: messages.filter((message) => message.type == 'incoming' && message.read == false).length,
@@ -268,6 +272,15 @@ async function refreshMessages() {
     handleConversationSelect(conversations.value.find(c => c.contact === phone)?.id || '');
   }
 }
+function filterConversations(filter) {
+  const filtered = conversations.value.filter(conversation => conversation.unreadCount > 0);
+  if (!filtered.length) return;
+  if (filter) {
+    conversations.value = filtered;
+  } else {
+    getMessages();
+  }
+}
 
 if ('Notification' in window && Notification.requestPermission) {
   Notification.requestPermission().then((permission) => {
@@ -285,7 +298,7 @@ if ('Notification' in window && Notification.requestPermission) {
 <template>
   <div class="flex h-full bg-white">
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
-      @select="handleConversationSelect" @refresh-messages="refreshMessages" />
+      @select="handleConversationSelect" @refresh-messages="refreshMessages" @filter="filterConversations" />
     <MessageView :conversation="selectedConversation" @refresh-messages="refreshMessages" :username="username"
       :selected-id="selectedConversationId" @back="selectedConversation = null, selectedConversationId = null" />
   </div>

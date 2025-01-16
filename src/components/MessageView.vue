@@ -32,7 +32,7 @@ const formatMessageTime = (timestamp) => {
 
   const daysDifference = differenceInDays(new Date(), date);
 
-  if (daysDifference <= 7) {
+  if (daysDifference <= 6) {
     const daysInHebrew = ['ימים', 'יום', 'יומיים', 'שלושה ימים', 'ארבעה ימים', 'חמישה ימים', 'שישה ימים', 'שבעה ימים'];
     return `לפני ${daysInHebrew[daysDifference + 1]}, ${time}`;
   }
@@ -183,12 +183,23 @@ function logout() {
               : 'bg-gray-100 text-gray-900'
           ]">
             <p :class="['whitespace-pre-line']" v-html="formatMessageContent(message.content)"></p>
-            <p :class="[
-              'text-xs mt-1 text-left',
-              message.type === 'outgoing' ? 'text-blue-100' : 'text-gray-500'
-            ]">
-              {{ formatMessageTime(message.timestamp) }}
-            </p>
+            <div class="flex items-center justify-end gap-1">
+              <p :class="[
+                'text-xs mt-1',
+                message.type === 'outgoing' ? 'text-blue-100' : 'text-gray-500'
+              ]">
+                {{ formatMessageTime(message.timestamp) }}
+              </p>
+              <span v-if="message.type === 'outgoing'" class="text-blue-100">
+                <svg title="נמסר" v-if="message.status === 'DELIVRD'" class="w-5 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4.5 12.75l6 6 9-13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4.5 12.75l6 6 9-13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(6,0)"/>
+                </svg>
+                <svg title="נשלח" v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4.5 12.75l6 6 9-13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </div>
           </div>
           <div v-if="message.type === 'incoming'" class="group-hover:flex items-center mr-3 hidden">
             <div @click="copyToClipboard(message.content)"
