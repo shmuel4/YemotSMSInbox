@@ -221,6 +221,7 @@ function logout() {
           <textarea 
             v-model="message" type="text" placeholder="הקלד הודעה..." rows="1"
             class="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-blue-500" 
+            @keydown.enter.meta.prevent="sendMessage(conversation.contact)"
             @keydown.enter.ctrl.prevent="sendMessage(conversation.contact)"
           />
           <button @click="sendMessage(conversation.contact)"
