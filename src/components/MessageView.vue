@@ -218,8 +218,12 @@ function logout() {
 
       <div class="border-t border-gray-200 p-4 sticky bottom-0 bg-white" v-if="conversation.contact.startsWith('0')">
         <div class="flex items-center space-x-2 space-x-reverse">
-          <textarea v-model="message" type="text" placeholder="הקלד הודעה..." rows="1"
-            class="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-blue-500" />
+          <textarea 
+            v-model="message" type="text" placeholder="הקלד הודעה..." rows="1"
+            class="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-blue-500" 
+            @keydown.enter.meta.prevent="sendMessage(conversation.contact)"
+            @keydown.enter.ctrl.prevent="sendMessage(conversation.contact)"
+          />
           <button @click="sendMessage(conversation.contact)"
             class="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
