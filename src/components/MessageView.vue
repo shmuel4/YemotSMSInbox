@@ -53,6 +53,7 @@ const formatMessageContent = (content) => {
 };
 
 async function sendMessage(phone) {
+  if (!phone || !message.value) return;
   const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`);
   const data = await response.json();
   if (data.responseStatus === 'OK') {
