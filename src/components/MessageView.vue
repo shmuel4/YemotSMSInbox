@@ -1,9 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { format, isToday, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { ArrowUturnLeftIcon, ArrowPathIcon, PowerIcon, PlusCircleIcon, PencilIcon, ClipboardIcon } from "@heroicons/vue/24/outline";
+import { CheckIcon } from "@heroicons/vue/24/solid";
 
-defineProps({
+const props = defineProps({
   conversation: {
     type: Object,
     default: null
@@ -20,7 +22,29 @@ defineProps({
 
 const emit = defineEmits(['refreshMessages', 'back']);
 
-const message = ref(null);
+const message = ref('');
+const messagesContainer = ref(null);
+const showScrollButton = ref(false);
+
+watch(() => props.conversation, () => {
+  nextTick(() => {
+    scrollToBottom();
+  });
+}, { deep: true });
+
+onMounted(() => {
+  if (messagesContainer.value) {
+    messagesContainer.value.addEventListener('scroll', handleScroll);
+  }
+});
+
+function handleScroll() {
+  if (!messagesContainer.value) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+  // Show button when scrolled up more than 200px from bottom
+  showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
+}
 
 const formatMessageTime = (timestamp) => {
   const date = new Date(timestamp);
@@ -41,55 +65,55 @@ const formatMessageTime = (timestamp) => {
 };
 
 function scrollToBottom() {
-  window.scrollTo(0, document.body.scrollHeight);
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+  }
 }
 
-const formatMessageContent = (content) => {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return content.replace(
-    urlRegex,
-    (url) => `<a href="${url}" target="_blank" class="underline">${url}</a>`
-  );
+const formatMessageContent = (content, type) => {
+  if (type === 'incoming') {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return content.replace(
+      urlRegex,
+      (url) => `<a href="${url}" target="_blank" class="text-indigo-600 hover:text-indigo-500 underline">${url}</a>`
+    );
+  } else if (type === 'outgoing') {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return content.replace(
+      urlRegex,
+      (url) => `<a href="${url}" target="_blank" class="underline">${url}</a>`
+    );
+  }
 };
 
 async function sendMessage(phone) {
   if (!phone || !message.value) return;
-  const response = await fetch(`https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`);
-  const data = await response.json();
-  if (data.responseStatus === 'OK') {
-    message.value = '';
-    emit('refreshMessages');
-  } else {
-    alert('שגיאה בשליחת ההודעה!\n' + data.message);
+
+  try {
+    const response = await fetch(
+      `https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`
+    );
+
+    const data = await response.json();
+
+    if (data.responseStatus === 'OK') {
+      message.value = '';
+      emit('refreshMessages');
+      nextTick(() => {
+        scrollToBottom();
+      });
+    } else {
+      alert('שגיאה בשליחת ההודעה!\n' + data.message);
+    }
+  } catch (error) {
+    alert('שגיאה בשליחת ההודעה: ' + error.message);
   }
-}
-
-async function addToContacts(phone, oldName) {
-  const name = prompt('הכנס את שם איש הקשר:', oldName || '');
-
-  const contactsFetch = await fetch(`https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini`);
-  const contactsRes = await contactsFetch.json();
-
-  const contacts = JSON.parse(contactsRes.contents);
-  contacts[phone] = name;
-
-  await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
-      what: 'ivr2:YemotSMSInboxContacts.ini',
-      contents: JSON.stringify(contacts)
-    })
-  });
-  emit('refreshMessages');
 }
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text)
     .then(() => {
+      // You could add a temporary visual feedback here
       console.log(`Copied text to clipboard: ${text}`);
     })
     .catch((error) => {
@@ -98,23 +122,37 @@ function copyToClipboard(text) {
 }
 
 function logout() {
-  localStorage.clear();
-  location.reload();
+  if (confirm('האם אתה בטוח שברצונך להתנתק?')) {
+    localStorage.clear();
+    location.reload();
+  }
 }
 </script>
 
 <template>
-  <div :class="[!selectedId ? 'pr-[320px]' : 'md:pr-[320px]', 'flex-1 flex flex-col h-full']">
+  <div :class="[
+    !selectedId ? 'pr-0 md:pr-96' : 'pr-0 md:pr-96',
+    'flex-1 flex flex-col h-full z-20 relative'
+  ]">
     <div v-if="conversation" class="flex-1 flex flex-col">
-      <div class="border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 bg-white z-10">
+      <!-- Header -->
+      <div class="border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 bg-white z-10 shadow-sm">
         <div class="space-x-3 space-x-reverse flex items-center">
-          <span class="h-6 w-6 text-gray-800 cursor-pointer md:hidden" title="חזור" @click="emit('back')">
-            <svg data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
-            </svg>
-          </span>
-          <img :src="conversation.avatar" alt="" class="h-10 w-10 rounded-full" />
+          <button class="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 md:hidden transition" title="חזור"
+            @click="emit('back')">
+            <ArrowUturnLeftIcon class="h-5 w-5" />
+          </button>
+
+          <div class="relative">
+            <img :src="conversation.avatar" alt="" class="h-10 w-10 rounded-full border border-gray-200 shadow-sm" />
+            <div v-if="conversation.unreadCount > 0"
+              class="absolute -top-1 -right-1 flex-shrink-0 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center ring-2 ring-white">
+              <span class="text-xs text-white font-medium">
+                {{ conversation.unreadCount }}
+              </span>
+            </div>
+          </div>
+
           <div class="-my-1">
             <h2 class="text-lg font-medium text-gray-900">
               {{ conversation.name }}
@@ -123,111 +161,83 @@ function logout() {
               {{ conversation.contact }}
             </h3>
           </div>
-          <div v-if="conversation.name == conversation.contact" @click="addToContacts(conversation.contact)"
-            class="w-[22px] text-gray-800 cursor-pointer" title="הוסף לאנשי הקשר">
-            <svg data-slot="icon" fill="none" stroke-width="1.8" stroke="currentColor" viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z">
-              </path>
-            </svg>
-          </div>
-          <div v-else @click="addToContacts(conversation.contact, conversation.name)"
-            class="w-4 h-4 -mt-4 text-gray-800 cursor-pointer" title="ערוך איש קשר">
-            <svg data-slot="icon" fill="none" stroke-width="1.8" stroke="currentColor" viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10">
-              </path>
-            </svg>
-          </div>
         </div>
 
-        <div class="flex items-center gap-4">
-          <span class="h-6 w-6 text-gray-800 cursor-pointer" title="רענן הודעות" @click="emit('refreshMessages')">
-            <svg data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99">
-              </path>
-            </svg>
-          </span>
-          <span class="h-6 w-6 text-gray-800 cursor-pointer" title="התנתק" @click="logout()">
-            <svg data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9"></path>
-            </svg>
-          </span>
+        <div class="flex items-center gap-2">
+          <button class="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 transition" title="רענן הודעות"
+            @click="emit('refreshMessages')">
+            <ArrowPathIcon class="h-5 w-5" />
+          </button>
+
+          <button class="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 transition" title="התנתק" @click="logout()">
+            <PowerIcon class="h-5 w-5" />
+          </button>
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <div v-for="message in conversation.messages" :key="message.id" :class="[
+      <!-- Messages -->
+      <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+        <div v-for="msg in conversation.messages" :key="msg.id" :class="[
           'flex group',
-          message.type === 'outgoing' ? 'justify-end' : 'justify-start'
+          msg.type === 'outgoing' ? 'justify-end' : 'justify-start'
         ]">
-          <div v-if="message.type === 'outgoing'" class="group-hover:flex items-center ml-3 hidden">
-            <div @click="copyToClipboard(message.content)"
-              class="w-8 text-gray-400 hover:text-gray-700 transition cursor-pointer hover:bg-gray-50 p-1.5 rounded-full">
-              <svg data-slot="icon" fill="none" stroke-width="1.8" stroke="currentColor" viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184">
-                </path>
-              </svg>
-            </div>
+          <div v-if="msg.type === 'outgoing'" class="group-hover:flex items-center ml-2 hidden">
+            <button @click="copyToClipboard(msg.content)"
+              class="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+              title="העתק הודעה">
+              <ClipboardIcon class="h-5 w-5" />
+            </button>
           </div>
+
           <div :class="[
-            'max-w-[70%] rounded-lg p-3',
-            message.type === 'outgoing'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 text-gray-900'
+            'max-w-[70%] rounded-2xl p-3 shadow-sm',
+            msg.type === 'outgoing'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-50 text-gray-900 border border-gray-100'
           ]">
-            <p :class="['whitespace-pre-line']" v-html="formatMessageContent(message.content)"></p>
-            <div class="flex items-center justify-end gap-1">
+            <p class="whitespace-pre-line text-[16px]" v-html="formatMessageContent(msg.content, msg.type)"></p>
+            <div class="flex items-center justify-end gap-1 mt-1">
               <p :class="[
-                'text-xs mt-1',
-                message.type === 'outgoing' ? 'text-blue-100' : 'text-gray-500'
+                'text-xs',
+                msg.type === 'outgoing' ? 'text-indigo-200' : 'text-gray-500'
               ]">
-                {{ formatMessageTime(message.timestamp) }}
+                {{ formatMessageTime(msg.timestamp) }}
               </p>
-              <span v-if="message.type === 'outgoing'" class="text-blue-100">
-                <svg title="נמסר" v-if="message.status === 'DELIVRD'" class="w-5 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4.5 12.75l6 6 9-13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M4.5 12.75l6 6 9-13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(6,0)"/>
-                </svg>
-                <svg title="נשלח" v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4.5 12.75l6 6 9-13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+
+              <span v-if="msg.type === 'outgoing'" :class="[
+                msg.status === 'DELIVRD' ? 'text-indigo-200' : 'text-indigo-300'
+              ]">
+                <div v-if="msg.status === 'DELIVRD'" class="flex" title="נמסר">
+                  <CheckIcon class="h-4 w-4" />
+                  <CheckIcon class="h-4 w-4 -mr-3" />
+                </div>
+                <CheckIcon v-else class="h-4 w-4" title="נשלח" />
               </span>
             </div>
           </div>
-          <div v-if="message.type === 'incoming'" class="group-hover:flex items-center mr-3 hidden">
-            <div @click="copyToClipboard(message.content)"
-              class="w-8 text-gray-400 hover:text-gray-700 transition cursor-pointer hover:bg-gray-50 p-1.5 rounded-full">
-              <svg data-slot="icon" fill="none" stroke-width="1.8" stroke="currentColor" viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184">
-                </path>
-              </svg>
-            </div>
+
+          <div v-if="msg.type === 'incoming'" class="group-hover:flex items-center mr-2 hidden">
+            <button @click="copyToClipboard(msg.content)"
+              class="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+              title="העתק הודעה">
+              <ClipboardIcon class="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
 
-
-      <div class="border-t border-gray-200 p-4 sticky bottom-0 bg-white" v-if="conversation.contact.startsWith('0')">
+      <!-- Message Input -->
+      <div class="border-t border-gray-200 p-4 sticky bottom-0 bg-white shadow-sm"
+        v-if="conversation.contact.startsWith('0')">
         <div class="flex items-center space-x-2 space-x-reverse">
-          <textarea 
-            v-model="message" type="text" placeholder="הקלד הודעה..." rows="1"
-            class="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-blue-500" 
+          <textarea v-model="message" placeholder="הקלד הודעה..." rows="1"
+            class="flex-1 rounded-full bg-gray-50 border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
             @keydown.enter.meta.prevent="sendMessage(conversation.contact)"
-            @keydown.enter.ctrl.prevent="sendMessage(conversation.contact)"
-          />
+            @keydown.enter.ctrl.prevent="sendMessage(conversation.contact)" />
+
           <button @click="sendMessage(conversation.contact)"
-            class="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+            class="bg-indigo-600 text-white rounded-full p-2.5 hover:bg-indigo-500 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -236,22 +246,46 @@ function logout() {
         </div>
       </div>
 
-      <div class="flex items-center justify-center">
-        <button v-if="false" @click="scrollToBottom"
-          class="fixed bottom-24 z-20 text-blue-500 border-gray-300 text-sm px-4 py-0.5 border rounded-full cursor-pointer">
-          חזור להודעה האחרונה
+      <!-- Scroll to bottom button -->
+      <transition name="fade">
+        <button v-if="showScrollButton" @click="scrollToBottom"
+          class="fixed bottom-24 right-1/2 transform translate-x-1/2 z-20 bg-indigo-600 text-white border-gray-300 text-sm px-4 py-2 border rounded-full shadow-md hover:bg-indigo-500 transition-all">
+          חזור למטה
         </button>
-      </div>
+      </transition>
     </div>
-    <div v-else class="flex-1 flex flex-col items-center justify-between text-gray-500 py-4">
+
+    <!-- Empty state -->
+    <div v-else class="flex-1 flex flex-col items-center justify-between text-gray-500 py-16">
       <div></div>
 
-      בחר שיחה בכדי להתחיל לשוחח
+      <div class="flex flex-col items-center">
+        <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
+          </path>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-700 mb-1">הודעות SMS</h3>
+        <p class="text-gray-500 text-center mb-4">בחר שיחה בכדי להתחיל לשוחח</p>
+      </div>
 
-      <div class="text-sm text-gray-600">
+      <div class="text-sm text-gray-600 bg-gray-100 py-2 px-4 rounded-lg">
         מחובר כ{{ username }} |
-        <button @click="logout()" class="text-blue-500 underline">התנתק</button>
+        <button @click="logout()" class="text-indigo-600 hover:text-indigo-800 transition">התנתק</button>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
