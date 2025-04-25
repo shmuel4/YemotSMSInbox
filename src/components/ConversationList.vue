@@ -9,10 +9,10 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon
 } from "@heroicons/vue/24/outline";
-import { 
-  checkGoogleAuthStatus, 
-  initiateGoogleLogin, 
-  logoutFromGoogle 
+import {
+  checkGoogleAuthStatus,
+  initiateGoogleLogin,
+  logoutFromGoogle
 } from '../services/google.service';
 
 const props = defineProps({
@@ -50,10 +50,10 @@ const handleGoogleStatusUpdate = async () => {
 onMounted(() => {
   // מיד בדוק סטטוס התחברות
   checkGoogleStatus();
-  
+
   // הוסף האזנה לאירוע העדכון
   window.addEventListener('googleAuthStatusUpdated', handleGoogleStatusUpdate);
-  
+
   // בנוסף, הוסף האזנה לאירוע שינוי סטטוס התחברות
   window.addEventListener('googleAuthStatusChanged', handleGoogleStatusUpdate);
 });
@@ -79,37 +79,37 @@ async function checkGoogleStatus() {
 async function handleGoogleLogin() {
   console.log('Initiating Google login...');
   try {
-    
+
     await initiateGoogleLogin();
-    
+
     // פול מחזורי לבדיקת סטטוס ההתחברות
     let attempts = 0;
     const maxAttempts = 20; // בדיקה למשך כ-10 שניות
-    
+
     const checkLoginStatus = async () => {
       attempts++;
       const status = await checkGoogleAuthStatus();
       console.log(`Login status check attempt ${attempts}:`, status);
-      
+
       if (status.isAuthenticated) {
         // התחברות הצליחה
         googleStatus.value = status;
-        
+
         // רענון הודעות מיידי
         emit('refreshMessages');
-        
+
         // הסרת ההודעה אחרי כמה שניות
         setTimeout(() => {
           document.body.removeChild(successMessage);
         }, 3000);
         return;
       }
-      
+
       if (attempts < maxAttempts) {
         setTimeout(checkLoginStatus, 500); // בדיקה כל חצי שנייה
       }
     };
-    
+
     // התחל בדיקות פול
     setTimeout(checkLoginStatus, 1000);
   } catch (error) {
@@ -237,13 +237,8 @@ onMounted(() => {
         הודעות
       </h1>
       <div class="flex items-center gap-2">
-        <button v-if="hasUnreadMessages" class="p-2 rounded-full hover:bg-gray-100 text-indigo-600 transition"
-          @click="toggleFilter" :class="{ 'bg-indigo-50': filter }">
-          <FunnelIcon class="w-5 h-5" />
-        </button>
         <!-- Google Auth Button -->
-        <button 
-          @click="googleStatus.isAuthenticated ? handleGoogleLogout() : handleGoogleLogin()"
+        <button @click="googleStatus.isAuthenticated ? handleGoogleLogout() : handleGoogleLogin()"
           class="p-1.5 rounded-full border transition-all hover:bg-gray-100 hover:border-gray-300"
           :class="googleStatus.isAuthenticated ? 'border-green-500 bg-green-50 hover:bg-green-50 hover:border-green-500' : 'border-transparent'"
           title="התחבר עם Google לסנכרון אנשי קשר">
@@ -262,6 +257,10 @@ onMounted(() => {
             </path>
           </svg>
         </button>
+        <button v-if="hasUnreadMessages" class="p-2 rounded-full hover:bg-gray-100 text-indigo-600 transition"
+          @click="toggleFilter" :class="{ 'bg-indigo-50': filter }">
+          <FunnelIcon class="w-5 h-5" />
+        </button>
         <button class="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition shadow-sm"
           @click="newMessageDialogVisible = true">
           <PencilSquareIcon class="w-5 h-5" />
@@ -272,8 +271,12 @@ onMounted(() => {
     <!-- Google Status Info (if authenticated) -->
     <div v-if="googleStatus.isAuthenticated" class="bg-indigo-50 py-2 px-3 border-b border-indigo-100">
       <div class="flex justify-between text-xs">
-        <span class="font-semibold text-indigo-700">{{ googleStatus.userEmail }}</span>
-        <span class="text-gray-600">{{ googleStatus.contactCount }} אנשי קשר</span>
+        <a :href="`https://contacts.google.com/?authuser=${googleStatus.userEmail}`" target="_blank" class="font-semibold text-indigo-700">
+          {{ googleStatus.userEmail }}
+        </a>
+        <span class="text-gray-600">
+          {{ googleStatus.contactCount }} אנשי קשר
+        </span>
       </div>
     </div>
 
