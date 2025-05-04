@@ -2,8 +2,9 @@
 import { ref, onMounted, watch, nextTick } from 'vue';
 import { format, isToday, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { ArrowUturnLeftIcon, ArrowPathIcon, PowerIcon, PlusCircleIcon, PencilIcon, ClipboardIcon } from "@heroicons/vue/24/outline";
-import { CheckIcon } from "@heroicons/vue/24/solid";
+import { ArrowUturnLeftIcon, ArrowPathIcon, PowerIcon, PlusCircleIcon, PencilIcon } from '@heroicons/vue/24/outline';
+import { CheckIcon } from '@heroicons/vue/24/solid';
+import CopyMessageButton from './CopyMessageButton.vue';
 
 const props = defineProps({
   conversation: {
@@ -110,17 +111,6 @@ async function sendMessage(phone) {
   }
 }
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text)
-    .then(() => {
-      // You could add a temporary visual feedback here
-      console.log(`Copied text to clipboard: ${text}`);
-    })
-    .catch((error) => {
-      console.error(`Could not copy text: ${error}`);
-    });
-}
-
 function logout() {
   if (confirm('האם אתה בטוח שברצונך להתנתק?')) {
     localStorage.clear();
@@ -217,11 +207,7 @@ function logout() {
           </div>
 
           <div v-if="msg.type === 'incoming'" class="group-hover:flex items-center mr-2 hidden">
-            <button @click="copyToClipboard(msg.content)"
-              class="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
-              title="העתק הודעה">
-              <ClipboardIcon class="h-5 w-5" />
-            </button>
+            <CopyMessageButton :text="msg.content" />
           </div>
         </div>
       </div>
