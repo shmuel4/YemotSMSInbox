@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue';
 import { format, isToday, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { ArrowUturnLeftIcon, ArrowPathIcon, PowerIcon, PlusCircleIcon, PencilIcon } from '@heroicons/vue/24/outline';
+import { ArrowUturnLeftIcon, ArrowPathIcon, PowerIcon, PlusCircleIcon, PencilIcon, ClipboardIcon } from '@heroicons/vue/24/outline';
 import { CheckIcon } from '@heroicons/vue/24/solid';
 import CopyMessageButton from './CopyMessageButton.vue';
 
@@ -38,6 +38,10 @@ onMounted(() => {
     messagesContainer.value.addEventListener('scroll', handleScroll);
   }
 });
+
+const openPrivacyPolicy = () => {
+  window.openPrivacyPolicy()
+};
 
 function handleScroll() {
   if (!messagesContainer.value) return;
@@ -259,6 +263,8 @@ function logout() {
       <div class="text-sm text-gray-600 bg-gray-100 py-2 px-4 rounded-lg">
         מחובר כ{{ username }} |
         <button @click="logout()" class="text-indigo-600 hover:text-indigo-800 transition">התנתק</button>
+        | 
+        <button @click="openPrivacyPolicy()" class="text-indigo-600 hover:text-indigo-800 transition">מדיניות פרטיות</button>
       </div>
     </div>
   </div>

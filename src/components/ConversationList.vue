@@ -28,6 +28,10 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'refreshMessages', 'filter']);
 
+const openPrivacyPolicy = () => {
+  window.openPrivacyPolicy()
+};
+
 const newMessageDialogVisible = ref(false);
 const filter = ref(false);
 const loading = ref(false);

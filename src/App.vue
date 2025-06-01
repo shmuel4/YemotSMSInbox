@@ -3,13 +3,18 @@ import { ref, watchEffect, nextTick } from 'vue';
 import { XMarkIcon } from "@heroicons/vue/24/outline";
 import ConversationList from './components/ConversationList.vue';
 import MessageView from './components/MessageView.vue';
+import PrivacyPolicy from './components/PrivacyPolicy.vue';
 // Import the Google service methods
-import { 
-  getGoogleContacts, 
-  initiateGoogleLogin, 
-  logoutFromGoogle, 
-  checkGoogleAuthStatus 
+import {
+  getGoogleContacts,
+  initiateGoogleLogin,
+  logoutFromGoogle,
+  checkGoogleAuthStatus
 } from './services/google.service';
+
+const openPrivacyPolicy = () => {
+  window.openPrivacyPolicy()
+};
 
 const conversations = ref([]);
 
@@ -118,7 +123,7 @@ async function init() {
     usernameFocus.value = true;
   } else {
     document.title = 'מערכת סמסים - ' + localStorage.getItem('username');
-    
+
     // חשוב: בדוק סטטוס התחברות גוגל לפני קריאה ל-getMessages
     // כך שהטוקן יהיה מוכן כאשר getMessages יבקש אנשי קשר
     try {
@@ -126,16 +131,16 @@ async function init() {
       const status = await checkGoogleAuthStatus();
       googleAuthStatus.value = status;
       console.log('Initial Google auth status:', status);
-      
+
       // הודע לרכיבים על סטטוס האימות
       window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
     } catch (error) {
       console.error('Error checking Google auth status during init:', error);
     }
-    
+
     // עכשיו קבל הודעות עם מידע אנשי הקשר מעודכן (אם קיים)
     await getMessages();
-    
+
     // הגדר בדיקות תקופתיות להודעות חדשות
     setInterval(checkNewMessages, 5000);
   }
@@ -174,7 +179,7 @@ async function checkNewMessages() {
 async function getMessages() {
   try {
     console.log('Getting messages and refreshing data...');
-    
+
     const incoming = await fetch(
       `https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
     );
@@ -369,26 +374,26 @@ async function login() {
       localStorage.setItem('username', username.value);
       localStorage.setItem('password', password.value);
       loginDialogVisible.value = false;
-      
+
       // האם להחליף את init בתהליך התחברות ספציפי יותר?
       // בדוק סטטוס גוגל לפני קבלת הודעות
       console.log('Successfully logged in, checking Google auth status...');
-      
+
       try {
         const status = await checkGoogleAuthStatus();
         googleAuthStatus.value = status;
         console.log('Google auth status after login:', status);
-        
+
         // הודע לכל הרכיבים על עדכון סטטוס האימות
         window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
       } catch (googleError) {
         console.error('Error checking Google status after login:', googleError);
       }
-      
+
       // קבל הודעות וחוזר לשגרה
       await getMessages();
       setInterval(checkNewMessages, 5000);
-      
+
     } else {
       error.value = 'שגיאה בהתחברות: ' + data.message;
     }
@@ -524,10 +529,16 @@ window.addEventListener('googleAuthStatusChanged', async () => {
               בודק את הפרטים...
             </span>
           </button>
+
+          <div class="text-sm text-center pt-2 text-indigo-600">
+            <span class="hover:underline cursor-pointer" @click="openPrivacyPolicy">מדיניות פרטיות</span>
+          </div>
         </div>
       </div>
     </div>
   </transition>
+
+  <PrivacyPolicy />
 </template>
 
 <style>
