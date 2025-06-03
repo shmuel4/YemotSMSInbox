@@ -26,6 +26,7 @@ const emit = defineEmits(['refreshMessages', 'back']);
 const message = ref('');
 const messagesContainer = ref(null);
 const showScrollButton = ref(false);
+const copiedCodeId = ref(null);
 
 watch(() => props.conversation, () => {
   nextTick(() => {
@@ -121,6 +122,77 @@ function logout() {
     location.reload();
   }
 }
+
+// הוסף את הפונקציה הזו אחרי הפונקציות הקיימות
+const extractVerificationCode = (content) => {
+  // בדיקה שהתוכן קיים ואינו null או undefined
+  if (!content || typeof content !== 'string') {
+    return null;
+  }
+  
+  const numbers = content.match(/\b\d{4,8}\b/g);
+  
+  if (!numbers) return null;
+  
+  for (const number of numbers) {
+    const numberIndex = content.indexOf(number);
+    const beforeChar = content.charAt(numberIndex - 1);
+    const afterChar = content.charAt(numberIndex + number.length);
+    
+    if (beforeChar === '-' || beforeChar === ' ') {
+      const beforeText = content.substring(Math.max(0, numberIndex - 5), numberIndex);
+      if (/\d+[-\s]$/.test(beforeText)) {
+        continue;
+      }
+    }
+    
+    if (number.length >= 7 && (
+      number.startsWith('05') || 
+      number.startsWith('02') || 
+      number.startsWith('03') || 
+      number.startsWith('04') || 
+      number.startsWith('08') || 
+      number.startsWith('09') ||
+      number.startsWith('077') ||
+      number.startsWith('072') ||
+      number.startsWith('073')
+    )) {
+      continue;
+    }
+    
+    if (number.length >= 5 && number.length <= 8) {
+      return number;
+    }
+    
+    if (number.length === 4) {
+      if (/(?:קוד|הקוד|code|pin|otp|verification|אימות)/i.test(content)) {
+        return number;
+      }
+    }
+  }
+  
+  return null;
+};
+
+const copyVerificationCode = (code, messageId) => {
+  navigator.clipboard.writeText(code).then(() => {
+    copiedCodeId.value = messageId;
+    setTimeout(() => {
+      copiedCodeId.value = null;
+    }, 2000);
+    console.log('קוד אימות הועתק:', code);
+  }).catch(err => {
+    console.error('שגיאה בהעתקת קוד האימות:', err);
+  });
+};
+
+const copyToClipboard = (text) => {
+  navigator.clipboard.writeText(text).then(() => {
+    console.log('Text copied to clipboard');
+  }).catch(err => {
+    console.error('Error copying text: ', err);
+  });
+};
 </script>
 
 <template>
@@ -190,23 +262,39 @@ function logout() {
               : 'bg-gray-50 text-gray-900 border border-gray-100'
           ]">
             <p class="whitespace-pre-line text-[16px]" v-html="formatMessageContent(msg.content, msg.type)"></p>
-            <div class="flex items-center justify-end gap-1 mt-1">
-              <p :class="[
-                'text-xs',
-                msg.type === 'outgoing' ? 'text-indigo-200' : 'text-gray-500'
-              ]">
-                {{ formatMessageTime(msg.timestamp) }}
-              </p>
 
-              <span v-if="msg.type === 'outgoing'" :class="[
-                msg.status === 'DELIVRD' ? 'text-indigo-200' : 'text-indigo-300'
-              ]">
-                <div v-if="msg.status === 'DELIVRD'" class="flex" title="נמסר">
-                  <CheckIcon class="h-4 w-4" />
-                  <CheckIcon class="h-4 w-4 -mr-3" />
-                </div>
-                <CheckIcon v-else class="h-4 w-4" title="נשלח" />
-              </span>
+            <div class="flex items-center justify-between gap-2 mt-1">
+              <!-- כפתור העתקת קוד אימות -->
+              <div>
+                <button 
+                  v-if="msg.type === 'incoming' && extractVerificationCode(msg.content)"
+                  @click="copyVerificationCode(extractVerificationCode(msg.content), msg.id)"
+                  class="flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded-full hover:bg-indigo-700 transition-colors"
+                  title="העתק קוד אימות">
+                  <ClipboardIcon class="h-3 w-3" />
+                  <span v-if="copiedCodeId === msg.id">הועתק!</span>
+                  <span v-else>{{ extractVerificationCode(msg.content) }}</span>
+                </button>
+              </div>
+              
+              <div class="flex items-center gap-1">
+                <p :class="[
+                  'text-xs',
+                  msg.type === 'outgoing' ? 'text-indigo-200' : 'text-gray-500'
+                ]">
+                  {{ formatMessageTime(msg.timestamp) }}
+                </p>
+
+                <span v-if="msg.type === 'outgoing'" :class="[
+                  msg.status === 'DELIVRD' ? 'text-indigo-200' : 'text-indigo-300'
+                ]">
+                  <div v-if="msg.status === 'DELIVRD'" class="flex" title="נמסר">
+                    <CheckIcon class="h-4 w-4" />
+                    <CheckIcon class="h-4 w-4 -mr-3" />
+                  </div>
+                  <CheckIcon v-else class="h-4 w-4" title="נשלח" />
+                </span>
+              </div>
             </div>
           </div>
 
