@@ -4,10 +4,11 @@
  */
 
 // Constants for Google authentication
-const CLIENT_ID = '293453062070-ne2pf11bn93mjr9mka97i484rb150vlt.apps.googleusercontent.com';
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_SERVICE_CLIENT_ID;
 // עדכון הסקופים לכלול גישה לאימייל
-const SCOPES = 'https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/userinfo.email';
-const DISCOVERY_DOC = 'https://people.googleapis.com/$discovery/rest?version=v1';
+const SCOPES = import.meta.env.VITE_GOOGLE_SERVICE_SCOPES;
+const DISCOVERY_DOC = import.meta.env.VITE_GOOGLE_SERVICE_DISCOVERY_DOC;
+const baseUrl = import.meta.env.VITE_YEMOT_BASE_API_URL;
 
 /**
  * Get Google contacts if authenticated
@@ -354,7 +355,7 @@ export async function saveGoogleTokenData(userData) {
     const dataAsString = JSON.stringify(userData);
 
     // Upload to server
-    const response = await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+    const response = await fetch(`${baseUrl}/UploadTextFile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -388,7 +389,7 @@ export async function getGoogleTokenData() {
 
     // Get data from server
     const response = await fetch(
-      `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:GoogleToken.txt`
+      `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:GoogleToken.txt`
     );
 
     if (!response.ok) {
@@ -430,7 +431,7 @@ export async function deleteGoogleTokenData() {
     console.log('Deleting Google token data');
 
     // Upload empty file to replace existing one
-    await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+    await fetch(`${baseUrl}/UploadTextFile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

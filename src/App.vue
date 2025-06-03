@@ -4,6 +4,7 @@ import { XMarkIcon } from "@heroicons/vue/24/outline";
 import ConversationList from './components/ConversationList.vue';
 import MessageView from './components/MessageView.vue';
 import PrivacyPolicy from './components/PrivacyPolicy.vue';
+const baseUrl = import.meta.env.VITE_YEMOT_BASE_API_URL;
 // Import the Google service methods
 import {
   getGoogleContacts,
@@ -74,7 +75,7 @@ const handleConversationSelect = (id) => {
     if (readedArray.length > 0) {
       try {
         const readedMessagesFetch = await fetch(
-          `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
+          `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
         );
 
         const readedMessagesRes = await readedMessagesFetch.json();
@@ -82,7 +83,7 @@ const handleConversationSelect = (id) => {
 
         if (readedMessagesRes.message === "file does not exist") {
           await fetch(
-            `https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(readedArray)}`
+            `${baseUrl}/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(readedArray)}`
           );
         } else {
           const readedMessagesData = readedMessagesRes.contents;
@@ -91,7 +92,7 @@ const handleConversationSelect = (id) => {
           readedMessages = readedMessagesObj;
           readedMessages = readedMessages.concat(readedArray);
 
-          await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+          await fetch(`${baseUrl}/UploadTextFile`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -152,7 +153,7 @@ async function checkNewMessages() {
     const password = localStorage.getItem('password');
 
     const response = await fetch(
-      `https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${username}:${password}&limit=1`
+      `${baseUrl}/GetSmsIncomingLog?token=${username}:${password}&limit=1`
     );
 
     const data = await response.json();
@@ -181,11 +182,11 @@ async function getMessages() {
     console.log('Getting messages and refreshing data...');
 
     const incoming = await fetch(
-      `https://www.call2all.co.il/ym/api/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
+      `${baseUrl}/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
     );
 
     const outgoing = await fetch(
-      `https://www.call2all.co.il/ym/api/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
+      `${baseUrl}/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
     );
 
     // Get contacts directly from Google
@@ -218,7 +219,7 @@ async function getMessages() {
     }
 
     const readedMessagesFetch = await fetch(
-      `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
+      `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
     );
 
     const readedMessagesRes = await readedMessagesFetch.json();
@@ -226,7 +227,7 @@ async function getMessages() {
 
     if (readedMessagesRes.message === "file does not exist") {
       await fetch(
-        `https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify([])}`
+        `${baseUrl}/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify([])}`
       );
     } else {
       const readedMessagesData = readedMessagesRes.contents;
@@ -366,7 +367,7 @@ async function login() {
   }
 
   try {
-    const response = await fetch(`https://www.call2all.co.il/ym/api/GetSession?token=${username.value}:${password.value}`);
+    const response = await fetch(`${baseUrl}/GetSession?token=${username.value}:${password.value}`);
     const data = await response.json();
 
     if (data.responseStatus === 'OK') {

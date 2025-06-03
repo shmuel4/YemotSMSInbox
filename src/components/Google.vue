@@ -33,6 +33,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+const baseUrl = import.meta.env.VITE_YEMOT_BASE_API_URL;
 
 // יבוא אמיטר אם הקומפוננטה משתמשת בו
 const emit = defineEmits(['refreshMessages']);
@@ -62,7 +63,7 @@ const saveGoogleTokenData = async (userData) => {
         const dataAsString = JSON.stringify(userData);
 
         // שימוש ב-API הקיים שלך לשמירת הנתונים
-        const response = await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+        const response = await fetch(`${baseUrl}/UploadTextFile`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -95,7 +96,7 @@ const getGoogleTokenData = async () => {
 
         // שימוש ב-API הקיים שלך לקבלת הנתונים
         const response = await fetch(
-            `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:GoogleToken.txt`
+            `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:GoogleToken.txt`
         );
 
         if (!response.ok) {
@@ -136,7 +137,7 @@ const deleteGoogleTokenData = async () => {
         console.log('מוחק נתוני Google Token');
 
         // שמירת קובץ ריק במקום המקורי ישיג את אותה מטרה
-        await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+        await fetch(`${baseUrl}/UploadTextFile`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -167,14 +168,14 @@ const addContactToSystem = async (phone, name) => {
 
     try {
         const contactsFetch = await fetch(
-            `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini`
+            `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxContacts.ini`
         );
 
         const contactsRes = await contactsFetch.json();
         const contacts = JSON.parse(contactsRes.contents);
         contacts[phone] = name || 'ללא שם';
 
-        await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+        await fetch(`${baseUrl}/UploadTextFile`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

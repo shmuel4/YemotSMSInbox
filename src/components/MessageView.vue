@@ -5,6 +5,7 @@ import { he } from 'date-fns/locale';
 import { ArrowUturnLeftIcon, ArrowPathIcon, PowerIcon, PlusCircleIcon, PencilIcon, ClipboardIcon } from '@heroicons/vue/24/outline';
 import { CheckIcon } from '@heroicons/vue/24/solid';
 import CopyMessageButton from './CopyMessageButton.vue';
+const baseUrl = import.meta.env.VITE_YEMOT_BASE_API_URL;
 
 const props = defineProps({
   conversation: {
@@ -96,7 +97,7 @@ async function sendMessage(phone) {
 
   try {
     const response = await fetch(
-      `https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`
+      `${baseUrl}/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`
     );
 
     const data = await response.json();

@@ -14,6 +14,7 @@ import {
   initiateGoogleLogin,
   logoutFromGoogle
 } from '../services/google.service';
+const baseUrl = import.meta.env.VITE_YEMOT_BASE_API_URL;
 
 const props = defineProps({
   conversations: {
@@ -189,7 +190,7 @@ async function sendNewMessage() {
 
   try {
     const response = await fetch(
-      `https://www.call2all.co.il/ym/api/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phoneToSend.value}&message=${messageToSend.value}`
+      `${baseUrl}/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phoneToSend.value}&message=${messageToSend.value}`
     );
 
     const data = await response.json();
