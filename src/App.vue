@@ -153,7 +153,7 @@ async function checkNewMessages() {
     const password = localStorage.getItem('password');
 
     const response = await fetch(
-      `${baseUrl}/GetSmsIncomingLog?token=${username}:${password}&limit=1`
+      `${baseUrl}/GetIncomingSms?token=${username}:${password}&limit=1`
     );
 
     const data = await response.json();
@@ -165,7 +165,7 @@ async function checkNewMessages() {
     }
 
     new Notification(
-      message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone,
+      message.source.startsWith('972') ? '0' + message.source.substring(3) : message.source,
       { body: message.message }
     );
 
@@ -182,7 +182,7 @@ async function getMessages() {
     console.log('Getting messages and refreshing data...');
 
     const incoming = await fetch(
-      `${baseUrl}/GetSmsIncomingLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
+      `${baseUrl}/GetIncomingSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
     );
 
     const outgoing = await fetch(
@@ -239,10 +239,12 @@ async function getMessages() {
     const outgoingMsgs = (await outgoing.json()).rows || [];
 
     const incomingMessages = incomingMsgs.map((message) => {
-      const phone = message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone;
+      const phone = message.source.startsWith('972') ? '0' + message.source.substring(3) : message.source;
       return {
-        ...message,
-        phone: phone,
+        dest: message.destination,
+        message: message.message,
+        server_date: message.receive_date,
+        phone,
         type: 'incoming',
         status: 'DELIVRD'
       };
