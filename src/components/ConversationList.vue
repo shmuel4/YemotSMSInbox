@@ -1,5 +1,4 @@
 <script setup>
-// נוסיף watcher כדי לדבג את הבחירה
 import { format, isToday, isThisYear, differenceInDays } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -7,7 +6,9 @@ import {
   FunnelIcon,
   PencilSquareIcon,
   MagnifyingGlassIcon,
-  XMarkIcon
+  XMarkIcon,
+  CheckCircleIcon,
+  EllipsisVerticalIcon
 } from "@heroicons/vue/24/outline";
 import {
   checkGoogleAuthStatus,
@@ -27,7 +28,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['select', 'refreshMessages', 'filter']);
+const emit = defineEmits(['select', 'refreshMessages', 'filter', 'markAllAsRead']);
 
 const openPrivacyPolicy = () => {
   window.openPrivacyPolicy()
@@ -40,6 +41,8 @@ const phoneToSend = ref('');
 const messageToSend = ref('');
 let callerId = ref('');
 const searchQuery = ref('');
+const showActionsMenu = ref(false);
+
 const googleStatus = ref({
   isAuthenticated: false,
   userEmail: '',
@@ -47,21 +50,26 @@ const googleStatus = ref({
 });
 const callerIds = ref([]);
 
-// האזנה לאירוע העדכון מהאפליקציה הראשית
+const toggleActionsMenu = () => {
+  showActionsMenu.value = !showActionsMenu.value;
+};
+
+// Close menu when clicking outside
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.actions-menu-container')) {
+    showActionsMenu.value = false;
+  }
+};
+
 const handleGoogleStatusUpdate = async () => {
   console.log('Received googleAuthStatusUpdated event in ConversationList');
   await checkGoogleStatus();
 };
 
-// רישום והסרת האזנה לאירועים
 onMounted(async () => {
-  // מיד בדוק סטטוס התחברות
   checkGoogleStatus();
-
-  // הוסף האזנה לאירוע העדכון
+  document.addEventListener('click', handleClickOutside);
   window.addEventListener('googleAuthStatusUpdated', handleGoogleStatusUpdate);
-
-  // בנוסף, הוסף האזנה לאירוע שינוי סטטוס התחברות
   window.addEventListener('googleAuthStatusChanged', handleGoogleStatusUpdate);
 
   // מכין זיהויים לשליחה
@@ -75,7 +83,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  // הסר האזנות בעת הריסת הקומפוננטה
+  document.removeEventListener('click', handleClickOutside);
   window.removeEventListener('googleAuthStatusUpdated', handleGoogleStatusUpdate);
   window.removeEventListener('googleAuthStatusChanged', handleGoogleStatusUpdate);
 });
@@ -98,9 +106,8 @@ async function handleGoogleLogin() {
 
     await initiateGoogleLogin();
 
-    // פול מחזורי לבדיקת סטטוס ההתחברות
     let attempts = 0;
-    const maxAttempts = 20; // בדיקה למשך כ-10 שניות
+    const maxAttempts = 20;
 
     const checkLoginStatus = async () => {
       attempts++;
@@ -108,29 +115,20 @@ async function handleGoogleLogin() {
       console.log(`Login status check attempt ${attempts}:`, status);
 
       if (status.isAuthenticated) {
-        // התחברות הצליחה
         googleStatus.value = status;
 
-        // רענון הודעות מיידי
         emit('refreshMessages');
-
-        // הסרת ההודעה אחרי כמה שניות
-        setTimeout(() => {
-          document.body.removeChild(successMessage);
-        }, 3000);
         return;
       }
 
       if (attempts < maxAttempts) {
-        setTimeout(checkLoginStatus, 500); // בדיקה כל חצי שנייה
+        setTimeout(checkLoginStatus, 500);
       }
     };
 
-    // התחל בדיקות פול
     setTimeout(checkLoginStatus, 1000);
   } catch (error) {
     console.error('Error during Google login:', error);
-    // הצג הודעת שגיאה למשתמש
     alert('שגיאה בתהליך ההתחברות לגוגל. אנא נסה שוב.');
   }
 }
@@ -151,7 +149,7 @@ const filteredConversations = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return props.conversations.filter(conversation =>
     conversation.name.toLowerCase().includes(query) ||
-    conversation.lastMessage.content.toLowerCase().includes(query)
+    conversation.lastMessage.message.toLowerCase().includes(query)
   );
 });
 
@@ -234,7 +232,12 @@ const toggleFilter = () => {
   emit('filter', filter.value);
 };
 
-// נוסיף console.log לבדיקה
+const markAllAsRead = () => {
+  if (confirm('האם אתה בטוח שברצונך לסמן את כל ההודעות כנקראו?')) {
+    emit('markAllAsRead');
+  }
+};
+
 watch(() => props.selectedId, (newVal) => {
   if (newVal) {
     console.log('Selected ID in ConversationList:', newVal);
@@ -242,7 +245,6 @@ watch(() => props.selectedId, (newVal) => {
   }
 });
 
-// נוסיף בדיקה גם בעת רנדור המרכיב
 onMounted(() => {
   if (props.selectedId) {
     console.log('Initial selectedId:', props.selectedId);
@@ -283,10 +285,42 @@ onMounted(() => {
             </path>
           </svg>
         </button>
-        <button v-if="hasUnreadMessages" class="p-2 rounded-full hover:bg-gray-100 text-indigo-600 transition"
-          @click="toggleFilter" :class="{ 'bg-indigo-50': filter }">
-          <FunnelIcon class="w-5 h-5" />
-        </button>
+
+        <!-- Actions Menu -->
+        <div v-if="hasUnreadMessages" class="relative actions-menu-container">
+          <button @click="toggleActionsMenu"
+            class="p-2 rounded-full hover:bg-gray-100 text-gray-600 transition relative"
+            :class="{ 'bg-gray-100': showActionsMenu }" title="פעולות נוספות">
+            <EllipsisVerticalIcon class="w-5 h-5" />
+            <!-- Badge for unread count -->
+            <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <span class="text-xs text-white font-medium">
+                {{props.conversations.reduce((sum, conv) => sum + conv.unreadCount, 0)}}
+              </span>
+            </div>
+          </button>
+
+          <!-- Dropdown Menu with higher z-index -->
+          <transition name="dropdown">
+            <div v-if="showActionsMenu"
+              class="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[100]">
+              <button @click="toggleFilter(); showActionsMenu = false"
+                class="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                :class="{ 'bg-indigo-50 text-indigo-700': filter }">
+                <FunnelIcon class="w-4 h-4" />
+                <span class="text-sm">{{ filter ? 'הסר סינון' : 'הצג רק לא נקראו' }}</span>
+              </button>
+
+              <button @click="markAllAsRead(); showActionsMenu = false"
+                class="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center gap-3 text-green-700 transition-colors">
+                <CheckCircleIcon class="w-4 h-4" />
+                <span class="text-sm">סמן הכל כנקרא</span>
+              </button>
+            </div>
+          </transition>
+        </div>
+
+        <!-- New Message Button -->
         <button class="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition shadow-sm"
           @click="newMessageDialogVisible = true">
           <PencilSquareIcon class="w-5 h-5" />
@@ -308,7 +342,7 @@ onMounted(() => {
     </div>
 
     <!-- Search Bar -->
-    <div class="px-4 py-3 sticky top-16 z-10 bg-white bg-opacity-95 backdrop-blur-sm">
+    <div class="px-4 py-3 top-16 bg-white bg-opacity-95 backdrop-blur-sm">
       <div
         class="relative flex items-center rounded-lg border border-gray-200 bg-gray-50 hover:bg-white focus-within:bg-white transition-all shadow-sm">
         <MagnifyingGlassIcon class="absolute right-3 w-4 h-4 text-gray-400" />
@@ -465,5 +499,20 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.15s ease-out;
+}
+
+.dropdown-enter-from {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.95);
+}
+
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.95);
 }
 </style>

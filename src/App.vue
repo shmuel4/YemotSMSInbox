@@ -31,7 +31,6 @@ const error = ref('');
 
 const setRead = ref(null);
 
-// Google auth status for the UI
 const googleAuthStatus = ref({
   isAuthenticated: false,
   userEmail: '',
@@ -43,7 +42,6 @@ const handleConversationSelect = (id) => {
 
   setRead.value = null;
 
-  // נוודא שהמשתנה מקבל את הערך כמחרוזת (string)
   selectedConversationId.value = String(id);
   selectedConversation.value = conversations.value.find(c => String(c.id) === String(id)) || null;
 
@@ -66,7 +64,7 @@ const handleConversationSelect = (id) => {
       if (!message.read) {
         readedArray.push({
           phone: message.sender,
-          message: message.content,
+          message: message.message,
           server_date: new Date(message.timestamp).getTime()
         });
       }
@@ -91,7 +89,6 @@ const handleConversationSelect = (id) => {
 
           readedMessages = readedMessagesObj;
           readedMessages = readedMessages.concat(readedArray);
-
           await fetch(`${baseUrl}/UploadTextFile`, {
             method: 'POST',
             headers: {
@@ -125,24 +122,19 @@ async function init() {
   } else {
     document.title = 'מערכת סמסים - ' + localStorage.getItem('username');
 
-    // חשוב: בדוק סטטוס התחברות גוגל לפני קריאה ל-getMessages
-    // כך שהטוקן יהיה מוכן כאשר getMessages יבקש אנשי קשר
     try {
       console.log('Checking Google auth status during initialization...');
       const status = await checkGoogleAuthStatus();
       googleAuthStatus.value = status;
       console.log('Initial Google auth status:', status);
 
-      // הודע לרכיבים על סטטוס האימות
       window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
     } catch (error) {
       console.error('Error checking Google auth status during init:', error);
     }
 
-    // עכשיו קבל הודעות עם מידע אנשי הקשר מעודכן (אם קיים)
     await getMessages();
 
-    // הגדר בדיקות תקופתיות להודעות חדשות
     setInterval(checkNewMessages, 5000);
   }
 }
@@ -176,7 +168,6 @@ async function checkNewMessages() {
   }
 }
 
-// Update getMessages to use only Google contacts from the service
 async function getMessages() {
   try {
     console.log('Getting messages and refreshing data...');
@@ -189,28 +180,23 @@ async function getMessages() {
       `${baseUrl}/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
     );
 
-    // Get contacts directly from Google
     let contacts = {};
 
-    // Fetch Google contacts using the service
     const googleContactsResult = await getGoogleContacts();
 
     if (googleContactsResult?.isAuthenticated && googleContactsResult?.contacts) {
-      // Create a mapping of phone numbers to names from Google contacts
       googleContactsResult.contacts.forEach(contact => {
         if (contact.phone && contact.name) {
           contacts[contact.phone] = contact.name;
         }
       });
 
-      // Update Google auth status
       googleAuthStatus.value = {
         isAuthenticated: true,
         userEmail: googleContactsResult.userData?.email || '',
         contactCount: googleContactsResult.contacts.length
       };
     } else {
-      // If not authenticated with Google, show empty contacts
       googleAuthStatus.value = {
         isAuthenticated: false,
         userEmail: '',
@@ -239,12 +225,14 @@ async function getMessages() {
     const outgoingMsgs = (await outgoing.json()).rows || [];
 
     const incomingMessages = incomingMsgs.map((message) => {
+      //const phone = message.phone.startsWith('972') ? '0' + message.phone.substring(3) : message.phone;
       const phone = message.source.startsWith('972') ? '0' + message.source.substring(3) : message.source;
       return {
         dest: message.destination,
         message: message.message,
         server_date: message.receive_date,
         phone,
+        server_date: message.receive_date,
         type: 'incoming',
         status: 'DELIVRD'
       };
@@ -264,11 +252,9 @@ async function getMessages() {
     localStorage.setItem('lastMessage', JSON.stringify(incomingMsgs[0]));
     conversations.value = [];
 
-    // יצירת רשימת ההודעות המלאה
     let messages = incomingMessages.concat(outgoingMessages);
     messages.sort((a, b) => new Date(b.server_date) - new Date(a.server_date));
 
-    // יצירת מיפוי של הודעות לפי מספר טלפון
     const messagesBySender = messages.reduce((acc, message) => {
       const sender = message.phone;
       if (!acc[sender]) {
@@ -278,13 +264,11 @@ async function getMessages() {
       return acc;
     }, {});
 
-    // וודא שאין ID זהים
     const usedIds = new Set();
 
     for (let conversation of removeDuplicates(messages, 'phone')) {
       const lastMessageData = messagesBySender[conversation.phone][0];
 
-      // יצירת ID ייחודי
       let uniqueId = crypto.randomUUID();
       while (usedIds.has(uniqueId)) {
         uniqueId = crypto.randomUUID();
@@ -292,7 +276,6 @@ async function getMessages() {
       usedIds.add(uniqueId);
 
       const msgs = messagesBySender[conversation.phone].reverse().map((message) => {
-        // כאן גם ניצור ID ייחודי לכל הודעה
         let msgUniqueId = crypto.randomUUID();
         while (usedIds.has(msgUniqueId)) {
           msgUniqueId = crypto.randomUUID();
@@ -301,7 +284,6 @@ async function getMessages() {
 
         return {
           id: msgUniqueId,
-          // יתר השדות נשארים כפי שהם
           sender: message.phone,
           content: message.message,
           timestamp: new Date(message.server_date),
@@ -318,7 +300,6 @@ async function getMessages() {
         };
       });
 
-      // יצירת ID ייחודי להודעה האחרונה
       let lastMsgUniqueId = crypto.randomUUID();
       while (usedIds.has(lastMsgUniqueId)) {
         lastMsgUniqueId = crypto.randomUUID();
@@ -326,13 +307,12 @@ async function getMessages() {
       usedIds.add(lastMsgUniqueId);
 
       conversations.value.push({
-        id: String(uniqueId), // הבטחה שה-ID הוא מחרוזת
+        id: String(uniqueId),
         contact: conversation.phone,
         name: contacts[conversation.phone] || conversation.phone,
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + conversation.phone,
         lastMessage: {
           id: lastMsgUniqueId,
-          // יתר השדות נשארים כפי שהם
           sender: lastMessageData.phone,
           content: lastMessageData.message,
           timestamp: new Date(lastMessageData.server_date),
@@ -352,8 +332,6 @@ async function getMessages() {
 
     console.log('Created conversations:', conversations.value.map(c => ({ id: c.id, name: c.name })));
 
-    // בסוף הפונקציה
-    // שולח אירוע שמציין שסטטוס האימות עודכן
     window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
   } catch (err) {
     console.error('Error getting messages:', err);
@@ -459,6 +437,102 @@ window.addEventListener('googleAuthStatusChanged', async () => {
   console.log('Google auth status changed, refreshing data...');
   await getMessages();
 });
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    console.log('Text copied to clipboard');
+  }).catch(err => {
+    console.error('Error copying text: ', err);
+  });
+}
+
+async function markAllAsRead() {
+  try {
+    // איסוף כל ההודעות הנכנסות שלא נקראו
+    const allUnreadMessages = [];
+    
+    conversations.value.forEach(conversation => {
+      const unreadIncomingMessages = conversation.messages.filter(
+        message => message.type === 'incoming' && !message.read
+      );
+      
+      unreadIncomingMessages.forEach(message => {
+        console.log(message)
+        allUnreadMessages.push({
+          phone: message.sender,
+          message: message.content,
+          server_date: new Date(message.timestamp).getTime()
+        });
+      });
+    });
+
+    if (allUnreadMessages.length === 0) {
+      console.log('No unread messages to mark as read');
+      return;
+    }
+
+    // קבלת ההודעות הנקראות הקיימות
+    const readedMessagesFetch = await fetch(
+      `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
+    );
+
+    const readedMessagesRes = await readedMessagesFetch.json();
+    let readedMessages = [];
+
+    if (readedMessagesRes.message === "file does not exist") {
+      // אם הקובץ לא קיים, צור אותו עם כל ההודעות הלא נקראות
+      await fetch(
+        `https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(allUnreadMessages)}`
+      );
+    } else {
+      // אם הקובץ קיים, הוסף את ההודעות החדשות
+      const readedMessagesData = readedMessagesRes.contents;
+      readedMessages = JSON.parse(readedMessagesData);
+      readedMessages = readedMessages.concat(allUnreadMessages);
+
+      // עדכן את הקובץ עם כל ההודעות הנקראות
+      await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
+          what: 'ivr2:YemotSMSInboxReadedMessages.ini',
+          contents: JSON.stringify(readedMessages)
+        })
+      });
+    }
+
+    // עדכן את כל השיחות מקומית - אפס את מונה ההודעות הלא נקראות
+    conversations.value = conversations.value.map(conversation => ({
+      ...conversation,
+      unreadCount: 0,
+      messages: conversation.messages.map(message => ({
+        ...message,
+        read: message.type === 'incoming' ? true : message.read
+      }))
+    }));
+
+    // עדכן את השיחה הנבחרת אם קיימת
+    if (selectedConversation.value) {
+      selectedConversation.value = {
+        ...selectedConversation.value,
+        unreadCount: 0,
+        messages: selectedConversation.value.messages.map(message => ({
+          ...message,
+          read: message.type === 'incoming' ? true : message.read
+        }))
+      };
+    }
+
+    console.log(`Marked ${allUnreadMessages.length} messages as read`);
+    
+  } catch (error) {
+    console.error('Error marking all messages as read:', error);
+    alert('שגיאה בסימון ההודעות כנקראו');
+  }
+}
 </script>
 
 <template>
@@ -467,7 +541,8 @@ window.addEventListener('googleAuthStatusChanged', async () => {
       :selected-id="selectedConversationId" @back="selectedConversation = null, selectedConversationId = null" />
 
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
-      @select="handleConversationSelect" @refresh-messages="refreshMessages" @filter="filterConversations" />
+      @select="handleConversationSelect" @refresh-messages="refreshMessages" @filter="filterConversations" 
+      @mark-all-as-read="markAllAsRead" />
   </div>
 
   <!-- <Google /> -->
