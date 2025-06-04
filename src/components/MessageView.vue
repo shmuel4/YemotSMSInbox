@@ -69,6 +69,7 @@ onMounted(async () => {
   const response = await fetch(`${baseUrl}/GetApprovedCallerIDs?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}`);
   const data = await response.json();
   if (data?.call?.callerIds) callerIds.value.push(...data?.call?.callerIds);
+  if (data?.call?.secondaryDids) callerIds.value.push(...data?.call?.secondaryDids);
   if (data?.sms?.smsId?.length > 0) callerIds.value.push(...data?.sms?.smsId);
 });
 
