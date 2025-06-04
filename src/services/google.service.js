@@ -17,6 +17,7 @@ const baseUrl = import.meta.env.VITE_YEMOT_BASE_API_URL;
 export async function getGoogleContacts() {
   try {
     console.log('Getting Google contacts...');
+    if(!CLIENT_ID || !SCOPES) return;
     
     // Check if GAPI is available
     if (!window.gapi) {

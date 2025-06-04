@@ -195,7 +195,7 @@ async function getMessages() {
     // Fetch Google contacts using the service
     const googleContactsResult = await getGoogleContacts();
 
-    if (googleContactsResult.isAuthenticated && googleContactsResult.contacts) {
+    if (googleContactsResult?.isAuthenticated && googleContactsResult?.contacts) {
       // Create a mapping of phone numbers to names from Google contacts
       googleContactsResult.contacts.forEach(contact => {
         if (contact.phone && contact.name) {
@@ -252,7 +252,7 @@ async function getMessages() {
 
     const outgoingMessages = outgoingMsgs.map((message) => {
       return {
-        dest: message.CallerId,
+        source: message.CallerId,
         phone: message.To,
         message: message.Message,
         server_date: message.Time,
@@ -310,6 +310,8 @@ async function getMessages() {
             readedMessage.message === message.message &&
             readedMessage.server_date === new Date(message.server_date).getTime()
           ),
+          source: message.source,
+          phone: message.dest,
           avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + message.phone,
           type: message.type,
           status: message.status,

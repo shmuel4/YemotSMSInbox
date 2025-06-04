@@ -28,16 +28,48 @@ const message = ref('');
 const messagesContainer = ref(null);
 const showScrollButton = ref(false);
 
+const callerIds = ref([]);
+let selectedCid = ref(localStorage.getItem('username'));
+
+const setFirtsCallerId = () => {
+  selectedCid = ref(callerIds.value[0]);
+};
+
 watch(() => props.conversation, () => {
   nextTick(() => {
     scrollToBottom();
   });
+
+  const messages = props.conversation?.messages || [];
+  const lastOutgoing = [...messages].reverse().find(m => m.type === 'outgoing');
+  if (!lastOutgoing) return setFirtsCallerId();
+  //console.log(`the last caller id is: ${lastOutgoing.source}. check if in `, callerIds.value, lastOutgoing)
+  if (lastOutgoing && lastOutgoing.source) {
+    let src = lastOutgoing.source.startsWith('0') ? `+972${lastOutgoing.source.substring(1)}` : lastOutgoing.source;
+    // אם קיים בקרלר־איידי עם + לפני המספר
+    if (callerIds.value.includes(src)) {
+      console.log(callerIds.value.indexOf(src));
+      selectedCid = ref(callerIds.value[callerIds.value.indexOf(src)]);
+    } else {
+      return setFirtsCallerId();
+    }
+  } else {
+    return setFirtsCallerId();
+  }
+
 }, { deep: true });
 
-onMounted(() => {
+
+onMounted(async () => {
   if (messagesContainer.value) {
     messagesContainer.value.addEventListener('scroll', handleScroll);
   }
+
+  // מכין זיהויים לשליחה
+  const response = await fetch(`${baseUrl}/GetApprovedCallerIDs?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}`);
+  const data = await response.json();
+  if (data?.call?.callerIds) callerIds.value.push(...data?.call?.callerIds);
+  if (data?.sms?.smsId?.length > 0) callerIds.value.push(...data?.sms?.smsId);
 });
 
 const openPrivacyPolicy = () => {
@@ -104,7 +136,8 @@ async function sendMessage(phone) {
       body: JSON.stringify({
         token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
         phones: phone,
-        message: message.value
+        message: message.value,
+        from: selectedCid?.value || null
       })
     })
     const data = await response.json();
@@ -205,6 +238,18 @@ function logout() {
               ]">
                 {{ formatMessageTime(msg.timestamp) }}
               </p>
+              <p v-if="msg.type === 'outgoing'" :class="[
+                'text-xs',
+                'text-indigo-300'
+              ]">
+                נשלח באמצעות {{ msg.source }}
+              </p>
+              <p v-if="msg.type !== 'outgoing'" :class="[
+                'text-xs',
+                'text-indigo-300'
+              ]">
+                התקבל ל {{ msg.phone }}
+              </p>
 
               <span v-if="msg.type === 'outgoing'" :class="[
                 msg.status === 'DELIVRD' ? 'text-indigo-200' : 'text-indigo-300'
@@ -227,6 +272,18 @@ function logout() {
       <!-- Message Input -->
       <div class="border-t border-gray-200 p-4 sticky bottom-0 bg-white shadow-sm"
         v-if="conversation.contact.startsWith('0')">
+        <div class="mb-2">
+          <label for="cid-select" class="block text-sm font-medium text-gray-700 mb-1">
+            זיהוי יוצא
+          </label>
+          <select dir="ltr" id="cid-select" v-model="selectedCid"
+            class="block w-full rounded-md border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+            <option v-for="cid in callerIds" :key="cid" :value="cid">
+              {{ cid }}
+            </option>
+          </select>
+        </div>
+
         <div class="flex items-center space-x-2 space-x-reverse">
           <textarea v-model="message" placeholder="הקלד הודעה..." rows="1"
             class="flex-1 rounded-full bg-gray-50 border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"

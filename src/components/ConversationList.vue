@@ -38,12 +38,14 @@ const filter = ref(false);
 const loading = ref(false);
 const phoneToSend = ref('');
 const messageToSend = ref('');
+let callerId = ref('');
 const searchQuery = ref('');
 const googleStatus = ref({
   isAuthenticated: false,
   userEmail: '',
   contactCount: 0
 });
+const callerIds = ref([]);
 
 // האזנה לאירוע העדכון מהאפליקציה הראשית
 const handleGoogleStatusUpdate = async () => {
@@ -52,7 +54,7 @@ const handleGoogleStatusUpdate = async () => {
 };
 
 // רישום והסרת האזנה לאירועים
-onMounted(() => {
+onMounted(async () => {
   // מיד בדוק סטטוס התחברות
   checkGoogleStatus();
 
@@ -61,6 +63,14 @@ onMounted(() => {
 
   // בנוסף, הוסף האזנה לאירוע שינוי סטטוס התחברות
   window.addEventListener('googleAuthStatusChanged', handleGoogleStatusUpdate);
+
+  // מכין זיהויים לשליחה
+  // צריך להפריד את זה לשירות נפרד, חבל על שיכפול הקוד
+  const response = await fetch(`${baseUrl}/GetApprovedCallerIDs?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}`);
+  const data = await response.json();
+  if (data?.call?.callerIds) callerIds.value.push(...data?.call?.callerIds);
+  if (data?.sms?.smsId?.length > 0) callerIds.value.push(...data?.sms?.smsId);
+  callerId = ref(callerIds.value[0]);
 });
 
 onUnmounted(() => {
@@ -179,6 +189,7 @@ const hasUnreadMessages = computed(() => {
 const resetNewMessageForm = () => {
   phoneToSend.value = '';
   messageToSend.value = '';
+  callerId.value = '';
   loading.value = false;
   newMessageDialogVisible.value = false;
 };
@@ -197,7 +208,8 @@ async function sendNewMessage() {
       body: JSON.stringify({
         token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
         phones: phoneToSend.value,
-        message: messageToSend.value
+        message: messageToSend.value,
+        from: callerId.value,
       })
     })
 
@@ -391,6 +403,21 @@ onMounted(() => {
             <span
               class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:top-3 peer-focus:text-xs">
               מספר טלפון
+            </span>
+          </label>
+
+          <label for="callerId"
+            class="relative block overflow-hidden rounded-lg border border-gray-200 px-3 pt-3 shadow-sm focus-within:border-indigo-600 focus-within:ring-1 focus-within:ring-indigo-600 transition-colors bg-white">
+            <select v-model="callerId" id="callerId"
+              class="peer h-10 w-full border-none bg-transparent p-0 placeholder-transparent focus:outline-none focus:ring-0 sm:text-sm text-gray-900"
+              dir="ltr">
+              <option v-for="id in callerIds" :key="id" :value="id">
+                {{ id }}
+              </option>
+            </select>
+            <span
+              class="absolute start-3 top-3 -translate-y-1/2 text-xs text-gray-500 transition-all peer-focus:top-3 peer-focus:text-xs peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm">
+              בחר זיהוי לשליחה
             </span>
           </label>
 
