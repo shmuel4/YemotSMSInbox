@@ -189,9 +189,17 @@ async function sendNewMessage() {
   loading.value = true;
 
   try {
-    const response = await fetch(
-      `${baseUrl}/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phoneToSend.value}&message=${messageToSend.value}`
-    );
+    const response = await fetch(`${baseUrl}/SendSms`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
+        phones: phoneToSend.value,
+        message: messageToSend.value
+      })
+    })
 
     const data = await response.json();
 
@@ -276,7 +284,8 @@ onMounted(() => {
     <!-- Google Status Info (if authenticated) -->
     <div v-if="googleStatus.isAuthenticated" class="bg-indigo-50 py-2 px-3 border-b border-indigo-100">
       <div class="flex justify-between text-xs">
-        <a :href="`https://contacts.google.com/?authuser=${googleStatus.userEmail}`" target="_blank" class="font-semibold text-indigo-700">
+        <a :href="`https://contacts.google.com/?authuser=${googleStatus.userEmail}`" target="_blank"
+          class="font-semibold text-indigo-700">
           {{ googleStatus.userEmail }}
         </a>
         <span class="text-gray-600">

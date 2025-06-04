@@ -96,10 +96,17 @@ async function sendMessage(phone) {
   if (!phone || !message.value) return;
 
   try {
-    const response = await fetch(
-      `${baseUrl}/SendSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&phones=${phone}&message=${message.value}`
-    );
-
+    const response = await fetch(`${baseUrl}/SendSms`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
+        phones: phone,
+        message: message.value
+      })
+    })
     const data = await response.json();
 
     if (data.responseStatus === 'OK') {
@@ -264,8 +271,9 @@ function logout() {
       <div class="text-sm text-gray-600 bg-gray-100 py-2 px-4 rounded-lg">
         מחובר כ{{ username }} |
         <button @click="logout()" class="text-indigo-600 hover:text-indigo-800 transition">התנתק</button>
-        | 
-        <button @click="openPrivacyPolicy()" class="text-indigo-600 hover:text-indigo-800 transition">מדיניות פרטיות</button>
+        |
+        <button @click="openPrivacyPolicy()" class="text-indigo-600 hover:text-indigo-800 transition">מדיניות
+          פרטיות</button>
       </div>
     </div>
   </div>
