@@ -18,4 +18,4 @@ nano .env
 and goto: http://localhost:8266/
 
 
-run live on: https://sms.mrkz.li/
+run live on: https://web.sms.call2all.co.il/
