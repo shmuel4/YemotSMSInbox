@@ -322,7 +322,6 @@ async function getMessages() {
           timestamp: new Date(lastMessageData.server_date),
           read: readedMessages.some(readedMessage =>
             readedMessages.phone === lastMessageData.phone &&
-            readedMessages.message === lastMessageData.message &&
             readedMessages.server_date === new Date(lastMessageData.server_date).getTime()
           ),
           avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + lastMessageData.phone,
@@ -555,7 +554,7 @@ async function markAllAsRead() {
         console.log(message)
         allUnreadMessages.push({
           phone: message.sender,
-          message: message.content,
+          //message: message.content,
           server_date: new Date(message.timestamp).getTime()
         });
       });
