@@ -178,11 +178,11 @@ async function getMessages() {
     console.log('Getting messages and refreshing data...');
 
     const incoming = await fetch(
-      `${baseUrl}/GetIncomingSms?limit=999999`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
+      `${baseUrl}/GetIncomingSms?limit=200000`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     const outgoing = await fetch(
-      `${baseUrl}/GetSmsOutLog?limit=999999`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
+      `${baseUrl}/GetSmsOutLog?limit=200000`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     let contacts = {};
