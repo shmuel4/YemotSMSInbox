@@ -448,7 +448,7 @@ async function startSession() {
 
   await getMessages();
   // קבל הודעות וחוזר לשגרה
-  checkNewMessagesInterval = setInterval(checkNewMessages, 10000);
+  checkNewMessagesInterval = setInterval(checkNewMessages, 1000);
   checkSessionInterval = setInterval(async () => {
     const sessionCheck = await checkSessionAlive()
     if (!sessionCheck) resetSession(true);
