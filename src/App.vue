@@ -135,6 +135,8 @@ async function init() {
   const mfaDoneStatus = getURLParameter('mfaDoneStatus');
   if (mfaDoneStatus && mfaDoneStatus !== 'ALREADY_PASSED' && mfaDoneStatus !== 'VALID') {
     error.value = `ביצוע אימות דו שלבי נכשל (${mfaDoneStatus}). יש להתחבר מחדש.`;
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
     resetSession();
   } else if (!await checkSessionAlive()) {
     resetSession();
