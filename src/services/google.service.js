@@ -359,10 +359,10 @@ export async function saveGoogleTokenData(userData) {
     const response = await fetch(`${baseUrl}/UploadTextFile`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'authorization': localStorage.getItem('sessionToken')
       },
       body: JSON.stringify({
-        token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
         what: 'ivr2:GoogleToken.txt',
         contents: dataAsString
       })
@@ -390,7 +390,7 @@ export async function getGoogleTokenData() {
 
     // Get data from server
     const response = await fetch(
-      `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:GoogleToken.txt`
+      `${baseUrl}/GetTextFile?what=ivr2:GoogleToken.txt`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     if (!response.ok) {
@@ -435,10 +435,10 @@ export async function deleteGoogleTokenData() {
     await fetch(`${baseUrl}/UploadTextFile`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'authorization': localStorage.getItem('sessionToken')
       },
       body: JSON.stringify({
-        token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
         what: 'ivr2:GoogleToken.txt',
         contents: ''
       })

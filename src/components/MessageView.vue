@@ -67,7 +67,7 @@ onMounted(async () => {
   }
 
   // מכין זיהויים לשליחה
-  const response = await fetch(`${baseUrl}/GetApprovedCallerIDs?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}`);
+  const response = await fetch(`${baseUrl}/GetApprovedCallerIDs`, { headers: { 'authorization': localStorage.getItem('sessionToken') } });
   const data = await response.json();
   if (data?.call?.callerIds) callerIds.value.push(...data?.call?.callerIds);
   if (data?.call?.secondaryDids) callerIds.value.push(...data?.call?.secondaryDids);
@@ -133,10 +133,10 @@ async function sendMessage(phone) {
     const response = await fetch(`${baseUrl}/SendSms`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'authorization': localStorage.getItem('sessionToken')
       },
       body: JSON.stringify({
-        token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
         phones: phone,
         message: message.value,
         from: selectedCid?.value || null
@@ -171,29 +171,29 @@ const extractVerificationCode = (content) => {
   if (!content || typeof content !== 'string') {
     return null;
   }
-  
+
   const numbers = content.match(/\b\d{4,8}\b/g);
-  
+
   if (!numbers) return null;
-  
+
   for (const number of numbers) {
     const numberIndex = content.indexOf(number);
     const beforeChar = content.charAt(numberIndex - 1);
     const afterChar = content.charAt(numberIndex + number.length);
-    
+
     if (beforeChar === '-' || beforeChar === ' ') {
       const beforeText = content.substring(Math.max(0, numberIndex - 5), numberIndex);
       if (/\d+[-\s]$/.test(beforeText)) {
         continue;
       }
     }
-    
+
     if (number.length >= 7 && (
-      number.startsWith('05') || 
-      number.startsWith('02') || 
-      number.startsWith('03') || 
-      number.startsWith('04') || 
-      number.startsWith('08') || 
+      number.startsWith('05') ||
+      number.startsWith('02') ||
+      number.startsWith('03') ||
+      number.startsWith('04') ||
+      number.startsWith('08') ||
       number.startsWith('09') ||
       number.startsWith('077') ||
       number.startsWith('072') ||
@@ -201,18 +201,18 @@ const extractVerificationCode = (content) => {
     )) {
       continue;
     }
-    
+
     if (number.length >= 5 && number.length <= 8) {
       return number;
     }
-    
+
     if (number.length === 4) {
       if (/(?:קוד|הקוד|code|pin|otp|verification|אימות)/i.test(content)) {
         return number;
       }
     }
   }
-  
+
   return null;
 };
 
@@ -304,24 +304,23 @@ const copyToClipboard = (text) => {
               : 'bg-gray-50 text-gray-900 border border-gray-100'
           ]">
             <p class="whitespace-pre-line text-[16px]" v-html="formatMessageContent(msg.content, msg.type)"></p>
-              <p v-if="msg.type === 'outgoing'" :class="[
-                'text-xs',
-                'text-indigo-300'
-              ]">
-                נשלח באמצעות {{ msg.source }}
-              </p>
-              <p v-if="msg.type !== 'outgoing'" :class="[
-                'text-xs',
-                'text-indigo-300'
-              ]">
-                התקבל ל {{ msg.phone }}
-              </p>
+            <p v-if="msg.type === 'outgoing'" :class="[
+              'text-xs',
+              'text-indigo-300'
+            ]">
+              נשלח באמצעות {{ msg.source }}
+            </p>
+            <p v-if="msg.type !== 'outgoing'" :class="[
+              'text-xs',
+              'text-indigo-300'
+            ]">
+              התקבל ל {{ msg.phone }}
+            </p>
 
             <div class="flex items-center justify-between gap-2 mt-1">
               <!-- כפתור העתקת קוד אימות -->
               <div>
-                <button 
-                  v-if="msg.type === 'incoming' && extractVerificationCode(msg.content)"
+                <button v-if="msg.type === 'incoming' && extractVerificationCode(msg.content)"
                   @click="copyVerificationCode(extractVerificationCode(msg.content), msg.id)"
                   class="flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded-full hover:bg-indigo-700 transition-colors"
                   title="העתק קוד אימות">
@@ -330,7 +329,7 @@ const copyToClipboard = (text) => {
                   <span v-else>{{ extractVerificationCode(msg.content) }}</span>
                 </button>
               </div>
-              
+
               <div class="flex items-center gap-1">
                 <p :class="[
                   'text-xs',

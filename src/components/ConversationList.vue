@@ -74,7 +74,7 @@ onMounted(async () => {
 
   // מכין זיהויים לשליחה
   // צריך להפריד את זה לשירות נפרד, חבל על שיכפול הקוד
-  const response = await fetch(`${baseUrl}/GetApprovedCallerIDs?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}`);
+  const response = await fetch(`${baseUrl}/GetApprovedCallerIDs`, { headers: { 'authorization': localStorage.getItem('sessionToken') } });
   const data = await response.json();
   if (data?.call?.callerIds) callerIds.value.push(...data?.call?.callerIds);
   if (data?.call?.secondaryDids) callerIds.value.push(...data?.call?.secondaryDids);
@@ -202,10 +202,10 @@ async function sendNewMessage() {
     const response = await fetch(`${baseUrl}/SendSms`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'authorization': localStorage.getItem('sessionToken')
       },
       body: JSON.stringify({
-        token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
         phones: phoneToSend.value,
         message: messageToSend.value,
         from: callerId.value,

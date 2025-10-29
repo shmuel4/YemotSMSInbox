@@ -17,6 +17,10 @@ const openPrivacyPolicy = () => {
   window.openPrivacyPolicy()
 };
 
+let checkNewMessagesInterval;
+let checkSessionInterval;
+let isLogin = false;
+
 const conversations = ref([]);
 
 const selectedConversationId = ref(null);
@@ -73,15 +77,14 @@ const handleConversationSelect = (id) => {
     if (readedArray.length > 0) {
       try {
         const readedMessagesFetch = await fetch(
-          `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
-        );
+          `${baseUrl}/GetTextFile?what=ivr2:YemotSMSInboxReadedMessages.ini`, { headers: { 'authorization': localStorage.getItem('sessionToken') } });
 
         const readedMessagesRes = await readedMessagesFetch.json();
         let readedMessages = [];
 
         if (readedMessagesRes.message === "file does not exist") {
           await fetch(
-            `${baseUrl}/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(readedArray)}`
+            `${baseUrl}/UploadTextFile?what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(readedArray)}`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
           );
         } else {
           const readedMessagesData = readedMessagesRes.contents;
@@ -92,10 +95,10 @@ const handleConversationSelect = (id) => {
           await fetch(`${baseUrl}/UploadTextFile`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'authorization': localStorage.getItem('sessionToken')
             },
             body: JSON.stringify({
-              token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
               what: 'ivr2:YemotSMSInboxReadedMessages.ini',
               contents: JSON.stringify(readedMessages)
             })
@@ -115,37 +118,37 @@ const handleConversationSelect = (id) => {
   }, 1000);
 };
 
+function getURLParameter(name) {
+  return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.href) || [null, ''])[1].replace(/\+/g, '%20')) || null;
+}
+
+function resetSession(showError = false) {
+  loginDialogVisible.value = true;
+  usernameFocus.value = true;
+  sessionStorage.clear();
+  if (checkNewMessagesInterval) clearInterval(checkNewMessagesInterval);
+  if (checkSessionInterval) clearInterval(checkSessionInterval);
+  if (showError) error.value = `בעקבות שגיאה, יש לבצע התחברות מחודשת`;
+}
+
 async function init() {
-  if (!localStorage.getItem('username') || !localStorage.getItem('password')) {
-    loginDialogVisible.value = true;
-    usernameFocus.value = true;
+  const mfaDoneStatus = getURLParameter('mfaDoneStatus');
+  if (mfaDoneStatus && mfaDoneStatus !== 'ALREADY_PASSED' && mfaDoneStatus !== 'VALID') {
+    error.value = `ביצוע אימות דו שלבי נכשל (${mfaDoneStatus}). יש להתחבר מחדש.`;
+    resetSession();
+  } else if (!await checkSessionAlive()) {
+    resetSession();
   } else {
     document.title = 'מערכת סמסים - ' + localStorage.getItem('username');
-
-    try {
-      console.log('Checking Google auth status during initialization...');
-      const status = await checkGoogleAuthStatus();
-      googleAuthStatus.value = status;
-      console.log('Initial Google auth status:', status);
-
-      window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
-    } catch (error) {
-      console.error('Error checking Google auth status during init:', error);
-    }
-
-    await getMessages();
-
-    setInterval(checkNewMessages, 5000);
+    await startSession();
+    //isLogin = true;
   }
 }
 
 async function checkNewMessages() {
   try {
-    const username = localStorage.getItem('username');
-    const password = localStorage.getItem('password');
-
     const response = await fetch(
-      `${baseUrl}/GetIncomingSms?token=${username}:${password}&limit=1`
+      `${baseUrl}/GetIncomingSms?limit=1`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     const data = await response.json();
@@ -173,11 +176,11 @@ async function getMessages() {
     console.log('Getting messages and refreshing data...');
 
     const incoming = await fetch(
-      `${baseUrl}/GetIncomingSms?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
+      `${baseUrl}/GetIncomingSms?limit=999999`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     const outgoing = await fetch(
-      `${baseUrl}/GetSmsOutLog?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&limit=999999`
+      `${baseUrl}/GetSmsOutLog?limit=999999`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     let contacts = {};
@@ -205,7 +208,7 @@ async function getMessages() {
     }
 
     const readedMessagesFetch = await fetch(
-      `${baseUrl}/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
+      `${baseUrl}/GetTextFile?what=ivr2:YemotSMSInboxReadedMessages.ini`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     const readedMessagesRes = await readedMessagesFetch.json();
@@ -213,7 +216,7 @@ async function getMessages() {
 
     if (readedMessagesRes.message === "file does not exist") {
       await fetch(
-        `${baseUrl}/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify([])}`
+        `${baseUrl}/UploadTextFile?what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify([])}`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
       );
     } else {
       const readedMessagesData = readedMessagesRes.contents;
@@ -338,6 +341,120 @@ async function getMessages() {
   }
 }
 
+async function checkSessionAlive() {
+
+  try {
+    // check if have local token
+    const username = localStorage.getItem('username');
+    const password = localStorage.getItem('password');
+    let sessionToken = localStorage.getItem('sessionToken');
+
+    if (!sessionToken) {
+      if (username && password) {
+        // try login
+        const loginRes = await doLogin(username, password);
+        if (loginRes.responseStatus) {
+          await saveSession(username, password, loginRes.token);
+          sessionToken = loginRes.token;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    // פה בטוח יש לנו טוקן
+    if (!sessionToken) throw new Error(`the startSession return without token.`);
+
+    const mfaIsPass = await doPostApi(isLogin ? 'GetSession' : 'MFASession', { action: 'isPass' });
+
+    if (isLogin && mfaIsPass?.responseStatus === 'OK') return true; // שמחוברים - זה מה שחשוב
+
+    if (!mfaIsPass || mfaIsPass.responseStatus !== 'OK') {
+      // אולי התחברות מחדש?
+      // מנסים להתחבר מחדש בפעם האחרונה לפני שנמחקים כל הפרטים
+      localStorage.removeItem('sessionToken');
+      isLogin = false;
+      if (checkNewMessagesInterval) clearInterval(checkNewMessagesInterval);
+      if (checkSessionInterval) clearInterval(checkSessionInterval);
+      return checkSessionAlive();
+    }
+
+    if (mfaIsPass.isPass === true) {
+      isLogin = true;
+      return true;
+    } else {
+      // try...
+      const mfaTryPass = await doPostApi('MFASession', { action: 'try' });
+      if (mfaTryPass?.isPass === true || mfaTryPass.message === 'the this action allow only BEFORE pass') {
+        isLogin = true;
+        // הצליח.. הידד
+        return true;
+      } else if (mfaTryPass.responseStatus === 'OK') {
+        // go to do MFA
+        window.location = `${baseUrl}/../mfa.php?mode=SSO&ymapitoken=${sessionToken}&callback=${window.location.origin + window.location.pathname}&callback_remove_token=1`;
+      } else {
+        throw new Error(`invalid MFA status.`);
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    return false; // relogin...
+  }
+}
+
+async function doPostApi(ws, prms) {
+  if (!prms) prms = {};
+  const apiR = await fetch(`${baseUrl}/${ws}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'authorization': localStorage.getItem('sessionToken')
+    },
+    body: JSON.stringify(prms)
+  });
+  return await apiR.json();
+}
+
+async function doLogin(username, password) {
+  return await doPostApi('Login', { username, password });
+}
+
+async function saveSession(username, password, token) {
+  localStorage.setItem('username', username);
+  localStorage.setItem('password', password);
+  localStorage.setItem('sessionToken', token);
+  loginDialogVisible.value = false;
+  //isLogin = true;
+}
+
+async function startSession() {
+  // האם להחליף את init בתהליך התחברות ספציפי יותר?
+  // בדוק סטטוס גוגל לפני קבלת הודעות
+  console.log('Successfully logged in, checking Google auth status...');
+
+  try {
+    const status = await checkGoogleAuthStatus();
+    googleAuthStatus.value = status;
+    console.log('Google auth status after login:', status);
+
+    // הודע לכל הרכיבים על עדכון סטטוס האימות
+    window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
+  } catch (googleError) {
+    console.error('Error checking Google status after login:', googleError);
+  }
+
+  if (checkNewMessagesInterval) clearInterval(checkNewMessagesInterval);
+  if (checkSessionInterval) clearInterval(checkSessionInterval);
+
+  await getMessages();
+  // קבל הודעות וחוזר לשגרה
+  checkNewMessagesInterval = setInterval(checkNewMessages, 10000);
+  checkSessionInterval = setInterval(async () => {
+    const sessionCheck = await checkSessionAlive()
+    if (!sessionCheck) resetSession(true);
+  }, 5000);
+}
+
 async function login() {
   loading.value = true;
   error.value = '';
@@ -349,34 +466,11 @@ async function login() {
   }
 
   try {
-    const response = await fetch(`${baseUrl}/GetSession?token=${username.value}:${password.value}`);
-    const data = await response.json();
+    const data = await doLogin(username.value, password.value);
 
-    if (data.responseStatus === 'OK') {
-      // שמור פרטי התחברות
-      localStorage.setItem('username', username.value);
-      localStorage.setItem('password', password.value);
-      loginDialogVisible.value = false;
-
-      // האם להחליף את init בתהליך התחברות ספציפי יותר?
-      // בדוק סטטוס גוגל לפני קבלת הודעות
-      console.log('Successfully logged in, checking Google auth status...');
-
-      try {
-        const status = await checkGoogleAuthStatus();
-        googleAuthStatus.value = status;
-        console.log('Google auth status after login:', status);
-
-        // הודע לכל הרכיבים על עדכון סטטוס האימות
-        window.dispatchEvent(new CustomEvent('googleAuthStatusUpdated'));
-      } catch (googleError) {
-        console.error('Error checking Google status after login:', googleError);
-      }
-
-      // קבל הודעות וחוזר לשגרה
-      await getMessages();
-      setInterval(checkNewMessages, 5000);
-
+    if (data.responseStatus === 'OK' && data.token) {
+      await saveSession(username.value, password.value, data.token);
+      location.reload();
     } else {
       error.value = 'שגיאה בהתחברות: ' + data.message;
     }
@@ -450,12 +544,12 @@ async function markAllAsRead() {
   try {
     // איסוף כל ההודעות הנכנסות שלא נקראו
     const allUnreadMessages = [];
-    
+
     conversations.value.forEach(conversation => {
       const unreadIncomingMessages = conversation.messages.filter(
         message => message.type === 'incoming' && !message.read
       );
-      
+
       unreadIncomingMessages.forEach(message => {
         console.log(message)
         allUnreadMessages.push({
@@ -473,7 +567,7 @@ async function markAllAsRead() {
 
     // קבלת ההודעות הנקראות הקיימות
     const readedMessagesFetch = await fetch(
-      `https://www.call2all.co.il/ym/api/GetTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini`
+      `${baseUrl}/GetTextFile?what=ivr2:YemotSMSInboxReadedMessages.ini`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
     );
 
     const readedMessagesRes = await readedMessagesFetch.json();
@@ -482,7 +576,7 @@ async function markAllAsRead() {
     if (readedMessagesRes.message === "file does not exist") {
       // אם הקובץ לא קיים, צור אותו עם כל ההודעות הלא נקראות
       await fetch(
-        `https://www.call2all.co.il/ym/api/UploadTextFile?token=${localStorage.getItem('username')}:${localStorage.getItem('password')}&what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(allUnreadMessages)}`
+        `${baseUrl}/UploadTextFile?what=ivr2:YemotSMSInboxReadedMessages.ini&contents=${JSON.stringify(allUnreadMessages)}`, { headers: { 'authorization': localStorage.getItem('sessionToken') } }
       );
     } else {
       // אם הקובץ קיים, הוסף את ההודעות החדשות
@@ -491,13 +585,13 @@ async function markAllAsRead() {
       readedMessages = readedMessages.concat(allUnreadMessages);
 
       // עדכן את הקובץ עם כל ההודעות הנקראות
-      await fetch(`https://www.call2all.co.il/ym/api/UploadTextFile`, {
+      await fetch(`${baseUrl}/UploadTextFile`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'authorization': localStorage.getItem('sessionToken')
         },
         body: JSON.stringify({
-          token: `${localStorage.getItem('username')}:${localStorage.getItem('password')}`,
           what: 'ivr2:YemotSMSInboxReadedMessages.ini',
           contents: JSON.stringify(readedMessages)
         })
@@ -527,7 +621,7 @@ async function markAllAsRead() {
     }
 
     console.log(`Marked ${allUnreadMessages.length} messages as read`);
-    
+
   } catch (error) {
     console.error('Error marking all messages as read:', error);
     alert('שגיאה בסימון ההודעות כנקראו');
@@ -541,7 +635,7 @@ async function markAllAsRead() {
       :selected-id="selectedConversationId" @back="selectedConversation = null, selectedConversationId = null" />
 
     <ConversationList :conversations="conversations" :selected-id="selectedConversationId"
-      @select="handleConversationSelect" @refresh-messages="refreshMessages" @filter="filterConversations" 
+      @select="handleConversationSelect" @refresh-messages="refreshMessages" @filter="filterConversations"
       @mark-all-as-read="markAllAsRead" />
   </div>
 
