@@ -68,7 +68,7 @@ const handleConversationSelect = (id) => {
       if (!message.read) {
         readedArray.push({
           phone: message.sender,
-          message: message.message,
+          //message: message.message,
           server_date: new Date(message.timestamp).getTime()
         });
       }
@@ -237,7 +237,7 @@ async function getMessages() {
         message: message.message,
         server_date: message.receive_date,
         phone,
-        server_date: message.receive_date,
+        //server_date: message.receive_date,
         type: 'incoming',
         status: 'DELIVRD'
       };
@@ -294,7 +294,6 @@ async function getMessages() {
           timestamp: new Date(message.server_date),
           read: readedMessages.some(readedMessage =>
             readedMessage.phone === message.phone &&
-            readedMessage.message === message.message &&
             readedMessage.server_date === new Date(message.server_date).getTime()
           ),
           source: message.source,
